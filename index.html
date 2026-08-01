@@ -78,18 +78,15 @@ function toast(msg){const t=$('#toast');if(!t)return;t.textContent=msg;t.classLi
 function fail(error,context='Something went wrong'){console.error(error);state.sync='error';renderTopSync();alert(`${context}. ${error?.message||''}`.trim())}
 function renderTopSync(){const el=document.querySelector('.sync-state');if(!el)return;el.className='sync-state'+(state.sync?' '+state.sync:'');el.textContent=state.sync==='saving'?'Saving…':state.sync==='error'?'Not saved':''}
 function currentIdx(){return Math.floor((todayDay()-dateToDay(state.settings.anchor))/14)}
-function itemSort(a,b){
-  const rank=i=>{const n=String(i.item||'').trim().toLowerCase();if(n==='1. main income')return 0;if(i.type==='Income')return 1;return 2};
-  return rank(a)-rank(b)||dateToDay(a.date)-dateToDay(b.date)||String(a.item).localeCompare(String(b.item),undefined,{numeric:true,sensitivity:'base'})||String(a.id).localeCompare(String(b.id));
-}
-function allItemSort(a,b){
-  const ad=String(a.date||'').slice(0,10),bd=String(b.date||'').slice(0,10);
-  if(ad!==bd)return ad<bd?-1:1;
-  const an=String(a.item||'').trim(),bn=String(b.item||'').trim();
-  const itemDiff=an.localeCompare(bn,'en-AU',{numeric:true,sensitivity:'base'});
+function chronologicalItemSort(a,b){
+  const dateDiff=dateToDay(a.date)-dateToDay(b.date);
+  if(dateDiff!==0)return dateDiff;
+  const itemDiff=String(a.item||'').trim().localeCompare(String(b.item||'').trim(),'en-AU',{numeric:true,sensitivity:'base'});
   if(itemDiff!==0)return itemDiff;
   return String(a.id||'').localeCompare(String(b.id||''));
 }
+const itemSort=chronologicalItemSort;
+const allItemSort=chronologicalItemSort;
 
 function isMainIncome(i){return String(i.item||'').trim().toLowerCase()==='1. main income'}
 function buildPeriods(){
@@ -162,7 +159,11 @@ function renderCashflowChart(ps){
   if(!canvas||typeof Chart==='undefined')return;
   const shown=ps.filter(x=>x.idx>=currentIdx()).slice(0,Number(state.settings.forecast_periods)||26);
   const labels=shown.map(x=>fullDate(x.end));
-  const values=shown.map(x=>Number(x.balance));
+  let running=Number(state.settings.starting_balance)||0;
+  const values=shown.map(x=>{
+    running+=Number(x.net)||0;
+    return Number(running.toFixed(2));
+  });
   const ctx=canvas.getContext('2d');
   const gradient=ctx.createLinearGradient(0,0,0,330);gradient.addColorStop(0,'rgba(36,106,138,.28)');gradient.addColorStop(1,'rgba(36,106,138,.02)');
   cashflowChart=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Expected balance',data:values,borderWidth:3,pointRadius:3,pointHoverRadius:6,pointBackgroundColor:values.map(v=>v<0?'#BE2D2D':'#246A8A'),pointBorderColor:'#FFFFFF',pointBorderWidth:2,fill:true,backgroundColor:gradient,tension:.34,segment:{borderColor:c=>((c.p0.parsed.y<0||c.p1.parsed.y<0)?'#BE2D2D':'#246A8A')}}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{displayColors:false,backgroundColor:'#142019',titleFont:{family:'Inter',size:11},bodyFont:{family:'IBM Plex Mono',size:12,weight:'600'},padding:11,callbacks:{label:c=>' '+money(c.parsed.y)}}},scales:{x:{grid:{display:false},border:{display:false},ticks:{color:'#68756D',font:{family:'Inter',size:10},maxRotation:0,autoSkip:true,maxTicksLimit:9}},y:{grid:{color:c=>c.tick.value===0?'rgba(190,45,45,.45)':'rgba(104,117,109,.12)',lineWidth:c=>c.tick.value===0?2:1},border:{display:false},ticks:{color:'#68756D',font:{family:'IBM Plex Mono',size:10},callback:v=>'$'+Intl.NumberFormat('en-AU',{notation:'compact',maximumFractionDigits:1}).format(v)}}}}});
@@ -197,7 +198,7 @@ function parseDate(v){const s=String(v||'').trim();if(/^\d{4}-\d{2}-\d{2}$/.test
 function importPreview(){const p=state.importParsed;return `<div class="preview"><strong>${p.rows.length.toLocaleString()} valid items ready</strong><br>${p.min?`${fullDate(p.min)} to ${fullDate(p.max)}`:''}${p.bad.length?`<br><span class="negative">Skipped rows: ${p.bad.join(', ')}</span>`:''}</div><div class="warning"><strong>Fresh start:</strong> this permanently replaces all existing budget items, edits and paid statuses.</div><div class="field"><label>Type REPLACE MY BUDGET to confirm</label><input id="confirmReplace" oninput="checkReplace(this.value)"></div><button id="replaceBtn" class="danger" style="width:100%" disabled onclick="replaceAll()">Delete and replace all items</button>`}
 window.checkReplace=v=>{$('#replaceBtn').disabled=v!=='REPLACE MY BUDGET'};window.replaceAll=async()=>{if(!state.importParsed||state.busy)return;state.busy=true;$('#replaceBtn').disabled=true;$('#replaceBtn').textContent='Replacing…';const{data,error}=await sb.rpc('replace_budget_items',{new_items:state.importParsed.rows});state.busy=false;if(error){fail(error,'Fresh start failed');renderModal()}else{state.modal=null;state.importParsed=null;await loadAll();toast(`${data} items imported`)}};
 function exportTab(){return `<p class="help">Download a full CSV backup of the live Supabase budget, including paid status and notes.</p><button class="primary" style="width:100%" onclick="exportCSV()">Download budget CSV</button><div style="height:10px"></div><button class="secondary" style="width:100%" onclick="exportSettings()">Download settings JSON</button>`}
-window.exportCSV=()=>{const rows=state.items.sort(itemSort).map(i=>({Date:i.date,Item:i.item,Amount:i.amount,Type:i.type,Category:i.category,Paid:i.paid?'Yes':'No',Notes:i.notes||''}));download(Papa.unparse(rows),'CashForCoffee-budget.csv','text/csv')};window.exportSettings=()=>download(JSON.stringify(state.settings,null,2),'CashForCoffee-settings.json','application/json');function download(content,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+window.exportCSV=()=>{const rows=[...state.items].sort(itemSort).map(i=>({Date:i.date,Item:i.item,Amount:i.amount,Type:i.type,Category:i.category,Paid:i.paid?'Yes':'No',Notes:i.notes||''}));download(Papa.unparse(rows),'CashForCoffee-budget.csv','text/csv')};window.exportSettings=()=>download(JSON.stringify(state.settings,null,2),'CashForCoffee-settings.json','application/json');function download(content,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function applyRealtime(payload){const row=payload.new||payload.old;if(!row)return;let changed=false;const scrollY=tableScrollTop();if(payload.eventType==='INSERT'){if(!state.items.some(i=>i.id===row.id)){state.items.push({...row,amount:Number(row.amount)});changed=true}}else if(payload.eventType==='UPDATE'){const idx=state.items.findIndex(i=>i.id===row.id);if(idx>=0&&!state.pending.has(row.id)){state.items[idx]={...state.items[idx],...row,amount:Number(row.amount)};changed=true}else if(idx<0){state.items.push({...row,amount:Number(row.amount)});changed=true}}else if(payload.eventType==='DELETE'){const before=state.items.length;state.items=state.items.filter(i=>i.id!==row.id);changed=state.items.length!==before}if(changed){render();restoreTableScroll(scrollY)}}
 sb.channel('cashforcoffee-live-v3').on('postgres_changes',{event:'*',schema:'public',table:'budget_items'},applyRealtime).on('postgres_changes',{event:'*',schema:'public',table:'budget_settings'},async()=>{const{data}=await sb.from('budget_settings').select('*').eq('id','global').single();if(data){state.settings={...data,starting_balance:Number(data.starting_balance)};render()}}).subscribe();
 loadAll();
