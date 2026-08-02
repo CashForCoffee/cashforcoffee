@@ -71,7 +71,7 @@ body.dashboard-lock{overflow:hidden}.dashboard-lock .main{height:100vh;overflow:
 .breakdown-row summary::-webkit-details-marker{display:none}
 .breakdown-name{font-size:12px;font-weight:700}
 .breakdown-bar-track{height:10px;background:var(--surface-3);border-radius:999px;overflow:hidden}
-.breakdown-bar{height:100%;border-radius:999px;background:linear-gradient(90deg,#4A9C72,#0F6B43)}
+.breakdown-bar{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#4A9C72,#0F6B43);min-width:3px}
 .breakdown-amount{text-align:right;font-size:11px;font-weight:700}
 .breakdown-pct{text-align:right;font-size:11px;color:var(--muted);font-weight:700}
 .breakdown-items{padding:0 18px 14px 32px;background:#FBFCFA}
