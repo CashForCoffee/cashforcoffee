@@ -114,18 +114,127 @@ function dashboardView(ps,p){const items=periodVisibleItems(p);return `<div clas
 function allItems(){const q=state.allSearch.trim().toLowerCase();return state.items.filter(i=>{const hit=!q||[i.item,i.category,i.notes,i.type,i.date].some(v=>String(v||'').toLowerCase().includes(q));const c=state.allCategory==='all'||i.category===state.allCategory;const p=state.allPaid==='all'||(state.allPaid==='paid'&&i.paid)||(state.allPaid==='unpaid'&&!i.paid);return hit&&c&&p}).map(i=>i).sort(allItemSort)}
 function allView(){const items=allItems(),income=state.items.filter(i=>i.type==='Income').reduce((s,i)=>s+i.amount,0),savings=state.items.filter(isSavingsItem).reduce((s,i)=>s+i.amount,0),expenses=state.items.filter(i=>i.type!=='Income'&&!isSavingsItem(i)).reduce((s,i)=>s+i.amount,0),unpaid=state.items.filter(i=>i.type!=='Income'&&!i.paid).reduce((s,i)=>s+i.amount,0);return `<div class="all-grid"><section class="all-summary"><div class="mini-card"><div class="label">All items</div><div class="value mono">${state.items.length.toLocaleString()}</div></div><div class="mini-card"><div class="label">Total income</div><div class="value mono" style="color:var(--green)">${money(income)}</div></div><div class="mini-card"><div class="label">Total expenses</div><div class="value mono" style="color:var(--red)">${money(expenses)}</div></div><div class="mini-card"><div class="label">Savings</div><div class="value mono" style="color:var(--amber)">${money(savings)}</div></div><div class="mini-card"><div class="label">Unpaid outgoings</div><div class="value mono" style="color:var(--blue)">${money(unpaid)}</div></div></section><section class="panel"><div class="panel-head"><div><div class="panel-title">Everything</div><div class="panel-sub">Every imported and manually added budget item</div></div><div class="panel-spacer"></div><button class="primary" onclick="addItem()">＋ Add item</button></div><div class="toolbar"><input class="search" placeholder="Search all items…" value="${esc(state.allSearch)}" oninput="setAllSearch(this.value)"><select class="select" onchange="setAllCategory(this.value)">${categoryOptions(state.allCategory)}</select><select class="select" onchange="setAllPaid(this.value)"><option value="all">All</option><option value="unpaid" ${state.allPaid==='unpaid'?'selected':''}>Unpaid</option><option value="paid" ${state.allPaid==='paid'?'selected':''}>Paid</option></select></div>${tableHTML(items,'all')}</section></div>`}
 function forecastView(ps,p){return `<div class="forecast-page"><section class="panel"><div class="panel-head"><div><div class="panel-title">Full fortnight forecast</div><div class="panel-sub">Expected balance for each pay fortnight. Tap a period to open it.</div></div></div>${forecastHTML(ps,p,Number(state.settings.forecast_periods)||26)}</section></div>`}
+
+function cashflowView(){
+  return `<div class="forecast-page"><section class="cashflow-card"><div class="cashflow-head"><div><div class="cashflow-title">Cumulative cash flow</div><div class="cashflow-sub">Running balance across future pay fortnights</div></div><div class="cashflow-legend"><span><i class="legend-dot pos"></i>Positive</span><span><i class="legend-dot neg"></i>Below zero</span></div></div><div class="cashflow-canvas-wrap"><canvas id="cashflowChart"></canvas></div><div class="zero-note">Each point carries the previous fortnight forward, so the line shows your projected running position.</div></section></div>`;
+}
+function renderCashflowChart(ps){
+  if(cashflowChart){cashflowChart.destroy();cashflowChart=null}
+  const canvas=document.getElementById('cashflowChart');
+  if(!canvas||typeof Chart==='undefined')return;
+  const shown=ps.filter(x=>x.idx>=currentIdx()).slice(0,Number(state.settings.forecast_periods)||26);
+  const labels=shown.map(x=>fullDate(x.end));
+  let running=Number(state.settings.starting_balance)||0;
+  const values=shown.map(x=>{
+    running+=Number(x.net)||0;
+    return Number(running.toFixed(2));
+  });
+  const ctx=canvas.getContext('2d');
+  const gradient=ctx.createLinearGradient(0,0,0,330);
+  gradient.addColorStop(0,'rgba(36,106,138,.28)');
+  gradient.addColorStop(1,'rgba(36,106,138,.02)');
+  cashflowChart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        label:'Expected balance',
+        data:values,
+        borderWidth:3,
+        pointRadius:3,
+        pointHoverRadius:6,
+        pointBackgroundColor:values.map(v=>v<0?'#BE2D2D':'#246A8A'),
+        pointBorderColor:'#FFFFFF',
+        pointBorderWidth:2,
+        fill:true,
+        backgroundColor:gradient,
+        tension:.34,
+        segment:{borderColor:c=>((c.p0.parsed.y<0||c.p1.parsed.y<0)?'#BE2D2D':'#246A8A')}
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          displayColors:false,
+          backgroundColor:'#142019',
+          titleFont:{family:'Inter',size:11},
+          bodyFont:{family:'IBM Plex Mono',size:12,weight:'600'},
+          padding:11,
+          callbacks:{label:c=>' '+money(c.parsed.y)}
+        }
+      },
+      scales:{
+        x:{
+          grid:{display:false},
+          border:{display:false},
+          ticks:{color:'#68756D',font:{family:'Inter',size:10},maxRotation:0,autoSkip:true,maxTicksLimit:9}
+        },
+        y:{
+          grid:{
+            color:c=>c.tick.value===0?'rgba(190,45,45,.45)':'rgba(104,117,109,.12)',
+            lineWidth:c=>c.tick.value===0?2:1
+          },
+          border:{display:false},
+          ticks:{
+            color:'#68756D',
+            font:{family:'IBM Plex Mono',size:10},
+            callback:v=>'$'+Intl.NumberFormat('en-AU',{notation:'compact',maximumFractionDigits:1}).format(v)
+          }
+        }
+      }
+    }
+  });
+}
+
 function breakdownData(items){
   const expenses=items.filter(i=>i.type!=='Income');
-  const total=expenses.reduce((s,i)=>s+Number(i.amount),0);
-  const groups=new Map();
+  const total=expenses.reduce((sum,i)=>sum+Number(i.amount),0);
+  const categoryMap=new Map();
+
   expenses.forEach(i=>{
-    const name=i.category||'Other';
-    if(!groups.has(name))groups.set(name,{name,total:0,items:[]});
-    const g=groups.get(name);
-    g.total+=Number(i.amount);
-    g.items.push(i);
+    const categoryName=String(i.category||'Other').trim()||'Other';
+    const itemName=String(i.item||'Untitled item').trim()||'Untitled item';
+    const categoryKey=categoryName.toLowerCase();
+    const itemKey=itemName.toLowerCase();
+
+    if(!categoryMap.has(categoryKey)){
+      categoryMap.set(categoryKey,{
+        name:categoryName,
+        total:0,
+        occurrences:0,
+        itemMap:new Map()
+      });
+    }
+
+    const category=categoryMap.get(categoryKey);
+    category.total+=Number(i.amount);
+    category.occurrences+=1;
+
+    if(!category.itemMap.has(itemKey)){
+      category.itemMap.set(itemKey,{
+        name:itemName,
+        total:0,
+        occurrences:0
+      });
+    }
+
+    const item=category.itemMap.get(itemKey);
+    item.total+=Number(i.amount);
+    item.occurrences+=1;
   });
-  return{total,groups:[...groups.values()].sort((a,b)=>b.total-a.total)};
+
+  const groups=[...categoryMap.values()].map(category=>({
+    name:category.name,
+    total:category.total,
+    occurrences:category.occurrences,
+    items:[...category.itemMap.values()].sort((a,b)=>b.total-a.total)
+  })).sort((a,b)=>b.total-a.total);
+
+  return{total,groups};
 }
 function breakdownView(){
   const items=[...state.items];
@@ -139,21 +248,49 @@ function breakdownView(){
   const top=d.groups[0];
   const savingsGroup=d.groups.find(g=>String(g.name).toLowerCase().includes('saving'));
   const incomePct=income?Math.round(outgoings/income*100):0;
+
   return `<div class="breakdown-page">
     <section class="insight-grid">
       <div class="insight-card"><div class="insight-icon">◉</div><div class="insight-text">${top?`<strong>${esc(top.name)}</strong> is the largest category at <strong>${Math.round(top.total/d.total*100)}%</strong> of all outgoings.`:'No expense data is available.'}</div></div>
       <div class="insight-card"><div class="insight-icon">◆</div><div class="insight-text">${savingsGroup?`Savings and sinking funds total <strong>${money(savingsGroup.total)}</strong>, or <strong>${Math.round(savingsGroup.total/d.total*100)}%</strong> of all outgoings.`:'No savings category is available.'}</div></div>
       <div class="insight-card"><div class="insight-icon">↕</div><div class="insight-text">All outgoings equal <strong>${incomePct}%</strong> of total income across the full budget.</div></div>
     </section>
+
     <section class="breakdown-summary">
       <div class="mini-card"><div class="label">Total income</div><div class="value mono" style="color:var(--green)">${money(income)}</div></div>
       <div class="mini-card"><div class="label">Total expenses</div><div class="value mono" style="color:var(--red)">${money(expenses)}</div></div>
       <div class="mini-card"><div class="label">Total savings</div><div class="value mono" style="color:var(--amber)">${money(savings)}</div></div>
       <div class="mini-card"><div class="label">Net position</div><div class="value mono ${net<0?'negative':''}">${money(net)}</div></div>
     </section>
+
     <section class="panel">
-      <div class="panel-head"><div><div class="panel-title">Where the money goes</div><div class="panel-sub">All budget items across every imported fortnight. Tap a category to see its items.</div></div></div>
-      <div class="breakdown-list">${d.groups.length?d.groups.map(g=>`<details class="breakdown-row"><summary><span class="breakdown-name">${esc(g.name)}</span><span class="breakdown-bar-track"><span class="breakdown-bar" style="width:${d.total?Math.max(2,g.total/d.total*100):0}%"></span></span><span class="breakdown-amount mono">${money(g.total)}</span><span class="breakdown-pct">${d.total?Math.round(g.total/d.total*100):0}%</span></summary><div class="breakdown-items">${g.items.sort(itemSort).map(i=>`<div class="breakdown-item"><span class="breakdown-item-name">${esc(i.item)} · ${fullDate(i.date)}</span><span class="breakdown-item-amount mono">${money(i.amount)}</span></div>`).join('')}</div></details>`).join(''):'<div style="padding:28px;text-align:center;color:var(--muted)">No expense items are available.</div>'}</div>
+      <div class="panel-head"><div><div class="panel-title">Where the money goes</div><div class="panel-sub">Each recurring item is combined into one total across the full budget. Tap a category to see its item breakdown.</div></div></div>
+      <div class="breakdown-list">${d.groups.length?d.groups.map(g=>{
+        const categoryPct=d.total?g.total/d.total*100:0;
+        return `<details class="breakdown-row">
+          <summary>
+            <span class="breakdown-name">${esc(g.name)}</span>
+            <span class="breakdown-bar-track"><span class="breakdown-bar" style="width:${Math.max(2,categoryPct)}%"></span></span>
+            <span class="breakdown-amount mono">${money(g.total)}</span>
+            <span class="breakdown-pct">${Math.round(categoryPct)}%</span>
+          </summary>
+          <div class="breakdown-items">
+            ${g.items.map(i=>{
+              const itemPct=d.total?i.total/d.total*100:0;
+              const withinCategoryPct=g.total?i.total/g.total*100:0;
+              return `<div class="breakdown-item">
+                <div class="breakdown-item-main">
+                  <span class="breakdown-item-name">${esc(i.name)}</span>
+                  <span class="breakdown-item-meta">${i.occurrences.toLocaleString()} occurrence${i.occurrences===1?'':'s'} · ${withinCategoryPct.toFixed(1)}% of ${esc(g.name)}</span>
+                  <span class="breakdown-item-bar-track"><span class="breakdown-item-bar" style="width:${Math.max(2,withinCategoryPct)}%"></span></span>
+                </div>
+                <span class="breakdown-item-amount mono">${money(i.total)}</span>
+                <span class="breakdown-item-pct">${itemPct.toFixed(1)}%</span>
+              </div>`;
+            }).join('')}
+          </div>
+        </details>`;
+      }).join(''):'<div style="padding:28px;text-align:center;color:var(--muted)">No expense items are available.</div>'}</div>
     </section>
   </div>`;
 }
