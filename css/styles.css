@@ -429,3 +429,53 @@ body.dashboard-lock{overflow:hidden}.dashboard-lock .main{height:100vh;overflow:
 .cashflow-head{padding:18px 20px 8px}
 .legend-dot.pos{background:#246A8A}
 @media(max-width:820px){.cashflow-head{padding:15px 14px 6px}}
+
+
+/* 12 Aug mobile refinements: keep All Items heading + search together, relax nav spacing. */
+@media(max-width:820px){
+  body.all-lock .all-sticky-controls{
+    position:sticky!important;
+    top:0!important;
+    z-index:24!important;
+    background:var(--surface)!important;
+    box-shadow:0 5px 12px rgba(20,32,25,.06);
+  }
+  body.all-lock .all-sticky-controls .panel-head,
+  body.all-lock .all-sticky-controls .toolbar{
+    position:static!important;
+    top:auto!important;
+    box-shadow:none!important;
+    background:var(--surface)!important;
+  }
+  body.all-lock .all-sticky-controls .panel-head{
+    padding:12px 12px 8px!important;
+    border-bottom:0!important;
+  }
+  body.all-lock .all-sticky-controls .toolbar{
+    padding:8px 12px 12px!important;
+    border-top:0!important;
+  }
+  body.all-lock .all-sticky-controls .panel-sub{margin-top:1px}
+
+  .mobile-nav{
+    height:76px!important;
+    padding:5px 4px calc(6px + env(safe-area-inset-bottom))!important;
+    align-items:stretch;
+  }
+  .mobile-nav button{
+    min-width:0;
+    padding:4px 1px 2px!important;
+    display:flex!important;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    gap:4px!important;
+    line-height:1.05;
+  }
+  .mobile-nav .icon-svg{width:20px;height:20px}
+  .mobile-nav button span{font-size:10px;white-space:nowrap}
+  .fab{bottom:calc(90px + env(safe-area-inset-bottom))!important}
+  .content{padding-bottom:calc(90px + env(safe-area-inset-bottom))!important}
+  body.dashboard-lock .content,
+  body.all-lock .content{padding-bottom:calc(90px + env(safe-area-inset-bottom))!important}
+}
