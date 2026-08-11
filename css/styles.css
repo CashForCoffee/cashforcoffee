@@ -325,3 +325,107 @@ body.dashboard-lock{overflow:hidden}.dashboard-lock .main{height:100vh;overflow:
     align-self:center!important;
   }
 }
+
+/* 11 August 2026 tweaks */
+/* Breakdown: keep the percentage beside the amount, but visually secondary. */
+.breakdown-row summary{
+  grid-template-columns:minmax(150px,1fr) minmax(120px,2fr) auto;
+}
+.breakdown-value{
+  display:flex;
+  align-items:baseline;
+  justify-content:flex-end;
+  gap:7px;
+  white-space:nowrap;
+}
+.breakdown-pct{
+  font-size:10px;
+  color:var(--faint);
+  font-weight:600;
+}
+
+/* Cash flow chart now uses the same green visual language as Breakdown. */
+.cashflow-card{margin-bottom:18px}
+.cashflow-head{padding:16px 18px}
+.legend-dot.pos{background:var(--green)}
+
+@media(max-width:820px){
+  /* All Items: remove Savings metric to reclaim vertical space. */
+  body.all-lock .all-summary .metric-savings{display:none!important}
+
+  /* All Items: use one native scroll surface for reliable Android/iOS scrolling. */
+  body.all-lock .main{
+    height:100dvh!important;
+    min-height:0!important;
+    overflow:hidden!important;
+  }
+  body.all-lock .content{
+    display:block!important;
+    flex:1 1 auto!important;
+    min-height:0!important;
+    height:auto!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    padding-top:16px!important;
+    padding-bottom:calc(80px + env(safe-area-inset-bottom))!important;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior-y:auto!important;
+  }
+  body.all-lock .all-grid{
+    display:block!important;
+    height:auto!important;
+    min-height:0!important;
+  }
+  body.all-lock .all-summary{margin-bottom:12px}
+  body.all-lock .budget-panel{
+    position:static!important;
+    display:block!important;
+    height:auto!important;
+    max-height:none!important;
+    min-height:0!important;
+    overflow:visible!important;
+  }
+  body.all-lock .budget-panel .panel-head{
+    position:static!important;
+  }
+  body.all-lock .budget-panel .toolbar{
+    position:sticky!important;
+    top:0!important;
+    z-index:20!important;
+    background:var(--surface)!important;
+    border-top:1px solid var(--border);
+    box-shadow:0 5px 12px rgba(20,32,25,.06);
+  }
+  body.all-lock .budget-panel .table-wrap{
+    display:block!important;
+    height:auto!important;
+    max-height:none!important;
+    min-height:0!important;
+    overflow:visible!important;
+    overscroll-behavior:auto!important;
+  }
+  body.all-lock .budget-panel .table-foot{
+    position:static!important;
+  }
+
+  /* Breakdown percentage remains visible on mobile beside the amount. */
+  .breakdown-row summary{
+    grid-template-columns:minmax(0,1fr) auto!important;
+    gap:8px!important;
+  }
+  .breakdown-value{
+    grid-column:2;
+    grid-row:1;
+    gap:5px;
+  }
+  .breakdown-pct{display:inline!important;font-size:9px}
+  .breakdown-bar-track{grid-column:1 / -1;grid-row:2}
+}
+
+/* Forecast bars match the Breakdown bar treatment. */
+.forecast-row .bar-zone{height:10px}
+.forecast-row .bar{background:linear-gradient(90deg,#4A9C72,#0F6B43)}
+.forecast-row .bar.negative{background:linear-gradient(90deg,#E66A6A,#BE2D2D)}
+.cashflow-head{padding:18px 20px 8px}
+.legend-dot.pos{background:#246A8A}
+@media(max-width:820px){.cashflow-head{padding:15px 14px 6px}}
