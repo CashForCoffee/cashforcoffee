@@ -479,3 +479,10 @@ body.dashboard-lock{overflow:hidden}.dashboard-lock .main{height:100vh;overflow:
   body.dashboard-lock .content,
   body.all-lock .content{padding-bottom:calc(90px + env(safe-area-inset-bottom))!important}
 }
+
+/* 12 Aug: remove the mobile gap above the sticky All Items controls. */
+@media(max-width:820px){
+  body.all-lock .all-sticky-controls{
+    top:-16px!important;
+  }
+}
