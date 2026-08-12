@@ -376,6 +376,44 @@ function importPreview(){const p=state.importParsed;return `<div class="preview"
 window.checkReplace=v=>{$('#replaceBtn').disabled=v!=='REPLACE MY BUDGET'};window.replaceAll=async()=>{if(!state.importParsed||state.busy)return;state.busy=true;$('#replaceBtn').disabled=true;$('#replaceBtn').textContent='Replacing…';const{data,error}=await sb.rpc('replace_budget_items',{new_items:state.importParsed.rows});state.busy=false;if(error){fail(error,'Fresh start failed');renderModal()}else{state.modal=null;state.importParsed=null;await loadAll();toast(`${data} items imported`)}};
 function exportTab(){return `<p class="help">Download a full CSV backup of the live Supabase budget, including paid status and notes.</p><button class="primary" style="width:100%" onclick="exportCSV()">Download budget CSV</button><div style="height:10px"></div><button class="secondary" style="width:100%" onclick="exportSettings()">Download settings JSON</button>`}
 window.exportCSV=()=>{const rows=[...state.items].sort(itemSort).map(i=>({Date:i.date,Item:i.item,Amount:i.amount,Type:i.type,Category:i.category,Paid:i.paid?'Yes':'No',Notes:i.notes||''}));download(Papa.unparse(rows),'CashForCoffee-budget.csv','text/csv')};window.exportSettings=()=>download(JSON.stringify(state.settings,null,2),'CashForCoffee-settings.json','application/json');function download(content,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-function applyRealtime(payload){const row=payload.new||payload.old;if(!row)return;let changed=false;const scrollY=tableScrollTop();if(payload.eventType==='INSERT'){if(!state.items.some(i=>i.id===row.id)){state.items.push({...row,amount:Number(row.amount)});changed=true}}else if(payload.eventType==='UPDATE'){const idx=state.items.findIndex(i=>i.id===row.id);if(idx>=0&&!state.pending.has(row.id)){state.items[idx]={...state.items[idx],...row,amount:Number(row.amount)};changed=true}else if(idx<0){state.items.push({...row,amount:Number(row.amount)});changed=true}}else if(payload.eventType==='DELETE'){const before=state.items.length;state.items=state.items.filter(i=>i.id!==row.id);changed=state.items.length!==before}if(changed){render();restoreTableScroll(scrollY)}}
+function sameBudgetItem(a,b){
+  if(!a||!b)return false;
+  return String(a.date||'')===String(b.date||'')&&
+    String(a.item||'')===String(b.item||'')&&
+    Number(a.amount)===Number(b.amount)&&
+    String(a.type||'')===String(b.type||'')&&
+    String(a.category||'')===String(b.category||'')&&
+    Boolean(a.paid)===Boolean(b.paid)&&
+    String(a.notes||'')===String(b.notes||'');
+}
+function applyRealtime(payload){
+  const row=payload.new||payload.old;
+  if(!row)return;
+  let changed=false;
+  const scrollPos=captureScrollState();
+  if(payload.eventType==='INSERT'){
+    if(!state.items.some(i=>i.id===row.id)){
+      state.items.push({...row,amount:Number(row.amount)});
+      changed=true;
+    }
+  }else if(payload.eventType==='UPDATE'){
+    const idx=state.items.findIndex(i=>i.id===row.id);
+    if(idx>=0&&!state.pending.has(row.id)){
+      const incoming={...state.items[idx],...row,amount:Number(row.amount)};
+      if(!sameBudgetItem(state.items[idx],incoming)){
+        state.items[idx]=incoming;
+        changed=true;
+      }
+    }else if(idx<0){
+      state.items.push({...row,amount:Number(row.amount)});
+      changed=true;
+    }
+  }else if(payload.eventType==='DELETE'){
+    const before=state.items.length;
+    state.items=state.items.filter(i=>i.id!==row.id);
+    changed=state.items.length!==before;
+  }
+  if(changed){render();restoreScrollState(scrollPos)}
+}
 sb.auth.onAuthStateChange((event,session)=>{setTimeout(async()=>{state.session=session;if(event==='SIGNED_OUT'){state.items=[];state.settings=null;state.itemsLoaded=false;await stopRealtime();renderLogin();return}if(event==='PASSWORD_RECOVERY'){renderSetPassword('recovery');return}if(event==='SIGNED_IN'&&session){if(state.authMode==='login'){AUTH_LINK_TYPE='';history.replaceState({},document.title,location.pathname)}await startApp()}if(event==='USER_UPDATED'&&session&&!authNeedsPassword(session.user)){await startApp()}},0)});
 initialiseAuth();
