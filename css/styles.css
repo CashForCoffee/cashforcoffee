@@ -497,3 +497,28 @@ body.dashboard-lock{overflow:hidden}.dashboard-lock .main{height:100vh;overflow:
     overflow:hidden;
   }
 }
+
+
+/* 13 August 2026: Breakdown date range + income by year/month */
+.income-time-grid{display:grid;grid-template-columns:minmax(220px,.72fr) minmax(0,2fr);gap:0;border-top:0}
+.income-time-section{padding:16px 18px}
+.income-time-section+ .income-time-section{border-left:1px solid var(--border)}
+.income-time-title{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:750;margin-bottom:10px}
+.income-time-list{display:grid;gap:8px}
+.income-time-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:10px 11px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;font-size:12px}
+.income-time-row>span:first-child{display:flex;flex-direction:column;gap:2px}
+.income-time-row small{font-size:9px;color:var(--faint);font-weight:500}
+.income-time-row .mono{font-weight:700;white-space:nowrap}
+.income-month-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.income-month-card{display:flex;flex-direction:column;gap:5px;padding:10px 11px;border:1px solid var(--border);background:#FBFCFA;border-radius:10px;min-width:0}
+.income-month-card span{font-size:10px;color:var(--muted);font-weight:650;white-space:nowrap}
+.income-month-card strong{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--green)}
+.income-time-empty{font-size:11px;color:var(--muted);padding:8px 0}
+@media(max-width:1100px){.income-month-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:820px){
+  .income-time-grid{grid-template-columns:1fr}
+  .income-time-section+ .income-time-section{border-left:0;border-top:1px solid var(--border)}
+  .income-month-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .income-time-section{padding:14px}
+}
+@media(max-width:430px){.income-month-card strong{font-size:11px}}

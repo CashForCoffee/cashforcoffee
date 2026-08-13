@@ -111,7 +111,7 @@ function tableHTML(items,mode='period',periodIdx=null){
     <td data-label="More"><button class="more" onclick="event.stopPropagation();editItem('${i.id}')">⋯</button></td></tr>`).join(''):`<tr><td colspan="6" style="padding:34px;text-align:center;color:var(--muted)">No matching items.</td></tr>`}
   </tbody></table></div><div class="table-foot"><span>${displayItems.length.toLocaleString()} item${displayItems.length===1?'':'s'}</span>${mode==='period'?`<button class="ghost" onclick="setView('all')">View everything →</button>`:''}</div>`
 }
-function forecastHTML(ps,p,limit=12){const shown=ps.filter(x=>x.idx>=currentIdx()).slice(0,limit),max=Math.max(1,...shown.map(x=>Math.abs(x.balance)));return shown.map(x=>`<button class="forecast-row ${x.idx===p.idx?'selected':''}" onclick="selectPeriod(${x.idx});setView('dashboard')"><span class="forecast-date">${esc(periodLabel(x))}</span><span class="bar-zone"><span class="bar ${x.balance<0?'negative':''}" style="width:${Math.max(2,Math.round(Math.abs(x.balance)/max*100))}%"></span></span><span class="forecast-amount mono ${x.balance<0?'negative':''}">${money(x.balance)}</span><span>›</span></button>`).join('')}
+function forecastHTML(ps,p,limit=12){const shown=ps.filter(x=>x.idx>=currentIdx()).slice(0,limit),max=Math.max(1,...shown.map(x=>Math.abs(x.net)));return shown.map(x=>`<button class="forecast-row ${x.idx===p.idx?'selected':''}" onclick="selectPeriod(${x.idx});setView('dashboard')"><span class="forecast-date">${esc(periodLabel(x))}</span><span class="bar-zone"><span class="bar ${x.net<0?'negative':''}" style="width:${Math.max(2,Math.round(Math.abs(x.net)/max*100))}%"></span></span><span class="forecast-amount mono ${x.net<0?'negative':''}">${money(x.net)}</span><span>›</span></button>`).join('')}
 function dashboardView(ps,p){const items=periodVisibleItems(p);return `<div class="dashboard-grid"><div class="left-col">${summaryCards(p)}<section class="panel budget-panel"><div class="panel-head"><div><div class="panel-title">Budget items</div><div class="panel-sub" data-period-count>${p.items.filter(i=>!i.paid).length} remaining of ${p.items.length} items this fortnight</div></div><div class="panel-spacer"></div><button class="primary panel-add" onclick="addItem()">${icon('plus')} Add item</button></div><div class="toolbar"><div class="search-wrap">${icon('search')}<input class="search" placeholder="Search items…" value="${esc(state.search)}" oninput="setPeriodSearch(this.value)"></div><select class="select category-filter" onchange="setPeriodCategory(this.value)">${categoryOptions(state.category)}</select><select class="select paid-filter" onchange="setPeriodFilter(this.value)"><option value="all">All</option><option value="unpaid" ${state.filter==='unpaid'?'selected':''}>Unpaid</option><option value="paid" ${state.filter==='paid'?'selected':''}>Paid</option></select></div>${tableHTML(items,'period',p.idx)}</section></div></div>`}
 function allItems(){const q=state.allSearch.trim().toLowerCase();const currentStart=dateToDay(state.settings.anchor)+currentIdx()*14;return state.items.filter(i=>{const hit=!q||[i.item,i.category,i.notes,i.type,i.date].some(v=>String(v||'').toLowerCase().includes(q));const c=state.allCategory==='all'||i.category===state.allCategory;const p=state.allPaid==='all'||(state.allPaid==='paid'&&i.paid)||(state.allPaid==='unpaid'&&!i.paid);const dateOk=!state.hidePast||dateToDay(i.date)>=currentStart;return hit&&c&&p&&dateOk}).map(i=>i).sort(allItemSort)}
 function allView(){const items=allItems(),income=state.items.filter(i=>i.type==='Income').reduce((s,i)=>s+i.amount,0),savings=state.items.filter(isSavingsItem).reduce((s,i)=>s+i.amount,0),outgoings=state.items.filter(i=>i.type!=='Income').reduce((s,i)=>s+i.amount,0),unpaid=state.items.filter(i=>i.type!=='Income'&&!i.paid).reduce((s,i)=>s+i.amount,0),expected=(Number(state.settings.starting_balance)||0)+income-outgoings;return `<div class="all-grid"><section class="all-summary"><div class="mini-card metric-income"><div class="label">${icon('arrow-down-circle')} Income</div><div class="value mono">${money(income)}</div></div><div class="mini-card metric-outgoings"><div class="label">${icon('arrow-up-circle')} Outgoings</div><div class="value mono">${money(outgoings)}</div></div><div class="mini-card metric-remaining"><div class="label">${icon('wallet')} Remaining outgoings</div><div class="value mono" data-metric="all-remaining">${money(unpaid)}</div></div><div class="mini-card metric-expected"><div class="label">${icon('piggy-bank')} Expected balance</div><div class="value mono ${expected<0?'negative':''}">${money(expected)}</div></div><div class="mini-card metric-savings"><div class="label">${icon('coins')} Savings</div><div class="value mono">${money(savings)}</div></div></section><section class="panel budget-panel"><div class="all-sticky-controls"><div class="panel-head"><div><div class="panel-title">Everything</div><div class="panel-sub">${items.length.toLocaleString()} visible of ${state.items.length.toLocaleString()} items</div></div><div class="panel-spacer"></div><label class="past-toggle"><input type="checkbox" ${state.hidePast?'checked':''} onchange="togglePastFortnights(this.checked)"><span>Hide past fortnights</span></label><button class="primary panel-add" onclick="addItem()">${icon('plus')} Add item</button></div><div class="toolbar"><div class="search-wrap">${icon('search')}<input class="search" placeholder="Search all items…" value="${esc(state.allSearch)}" oninput="setAllSearch(this.value)"></div><select class="select category-filter" onchange="setAllCategory(this.value)">${categoryOptions(state.allCategory)}</select><select class="select paid-filter" onchange="setAllPaid(this.value)"><option value="all">All</option><option value="unpaid" ${state.allPaid==='unpaid'?'selected':''}>Unpaid</option><option value="paid" ${state.allPaid==='paid'?'selected':''}>Paid</option></select></div></div>${tableHTML(items,'all')}</section></div>`}
@@ -241,7 +241,8 @@ function breakdownData(items){
 function breakdownView(){
   const items=[...state.items];
   const d=breakdownData(items);
-  const income=items.filter(i=>i.type==='Income').reduce((s,i)=>s+Number(i.amount),0);
+  const incomeItems=items.filter(i=>i.type==='Income');
+  const income=incomeItems.reduce((s,i)=>s+Number(i.amount),0);
   const savingsItems=items.filter(isSavingsItem);
   const savings=savingsItems.reduce((s,i)=>s+Number(i.amount),0);
   const expenses=items.filter(i=>i.type!=='Income'&&!isSavingsItem(i)).reduce((s,i)=>s+Number(i.amount),0);
@@ -250,6 +251,25 @@ function breakdownView(){
   const top=d.groups[0];
   const savingsGroup=d.groups.find(g=>String(g.name).toLowerCase().includes('saving'));
   const incomePct=income?Math.round(outgoings/income*100):0;
+
+  const datedItems=items.filter(i=>i.date).sort((a,b)=>dateToDay(a.date)-dateToDay(b.date));
+  const rangeStart=datedItems[0]?.date||'';
+  const rangeEnd=datedItems[datedItems.length-1]?.date||'';
+  const rangeLabel=rangeStart&&rangeEnd?`${new Date(rangeStart+'T00:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})} – ${new Date(rangeEnd+'T00:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})}`:'No dated budget items';
+
+  const incomeByYear=new Map();
+  const incomeByMonth=new Map();
+  incomeItems.forEach(i=>{
+    const date=new Date(i.date+'T00:00:00');
+    if(Number.isNaN(date.getTime()))return;
+    const year=String(date.getFullYear());
+    const monthKey=`${year}-${String(date.getMonth()+1).padStart(2,'0')}`;
+    incomeByYear.set(year,(incomeByYear.get(year)||0)+Number(i.amount));
+    incomeByMonth.set(monthKey,(incomeByMonth.get(monthKey)||0)+Number(i.amount));
+  });
+  const yearlyIncome=[...incomeByYear.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
+  const monthlyIncome=[...incomeByMonth.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
+  const monthLabel=key=>{const [y,m]=key.split('-').map(Number);return new Date(y,m-1,1).toLocaleDateString('en-AU',{month:'short',year:'numeric'})};
 
   return `<div class="breakdown-page">
     <section class="insight-grid">
@@ -263,6 +283,27 @@ function breakdownView(){
       <div class="mini-card"><div class="label">Total expenses</div><div class="value mono" style="color:var(--red)">${money(expenses)}</div></div>
       <div class="mini-card"><div class="label">Total savings</div><div class="value mono" style="color:var(--amber)">${money(savings)}</div></div>
       <div class="mini-card"><div class="label">Net position</div><div class="value mono ${net<0?'negative':''}">${money(net)}</div></div>
+    </section>
+
+    <section class="panel income-summary-panel">
+      <div class="panel-head"><div><div class="panel-title">Income over time</div><div class="panel-sub">Budget period: ${esc(rangeLabel)}. Income totals are based on the dated Income items in your budget.</div></div></div>
+      <div class="income-time-grid">
+        <div class="income-time-section">
+          <div class="income-time-title">By year</div>
+          <div class="income-time-list">${yearlyIncome.length?yearlyIncome.map(([year,total])=>{
+            const yearStart=`${year}-01-01`,yearEnd=`${year}-12-31`;
+            const coveredStart=rangeStart&&rangeStart>yearStart?rangeStart:yearStart;
+            const coveredEnd=rangeEnd&&rangeEnd<yearEnd?rangeEnd:yearEnd;
+            const partial=coveredStart!==yearStart||coveredEnd!==yearEnd;
+            const coverage=partial?`<small>${shortDate(coveredStart)} – ${shortDate(coveredEnd)}</small>`:'<small>Full year</small>';
+            return `<div class="income-time-row"><span><strong>${esc(year)}</strong>${coverage}</span><span class="mono">${money(total)}</span></div>`;
+          }).join(''):'<div class="income-time-empty">No income items</div>'}</div>
+        </div>
+        <div class="income-time-section">
+          <div class="income-time-title">By month</div>
+          <div class="income-month-grid">${monthlyIncome.length?monthlyIncome.map(([month,total])=>`<div class="income-month-card"><span>${esc(monthLabel(month))}</span><strong class="mono">${money(total)}</strong></div>`).join(''):'<div class="income-time-empty">No income items</div>'}</div>
+        </div>
+      </div>
     </section>
 
     <section class="panel">
