@@ -1,112 +1,29 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-AU">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cash for Coffee — Personal Budget</title>
-  
-  <!-- Favicon -->
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="96x96" href="assets/favicon/favicon-96x96.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon/favicon-16x16.png">
-  <link rel="shortcut icon" href="assets/favicon/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F8F5">
+<title>CashForCoffee</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<link rel="icon" type="image/x-icon" href="assets/favicon/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/favicon/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="assets/favicon/favicon-96x96.png">
+<link rel="apple-touch-icon" href="assets/favicon/apple-touch-icon.png">
+<link rel="stylesheet" href="css/styles.css">
 
-  <!-- Inter Font & Stylesheet -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css">
-  
-  <!-- Supabase CDN JS -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+<div id="app"><div class="loading">Loading CashForCoffee…</div></div>
+<div id="modal"></div><div id="toast" class="toast"></div>
+<script src="js/app.js" defer></script>
 
-  <div class="app-container">
-    
-    <!-- Top Header -->
-    <header class="app-header">
-      <div class="brand">
-        <img src="assets/logo/cashforcoffee-logo.png" alt="Cash for Coffee Logo" id="app-logo">
-        <div>
-          <h1>Cash for Coffee</h1>
-          <p class="brand-subtitle">Personal Budget & Allowance Tracker</p>
-        </div>
-      </div>
-      <div class="header-actions">
-        <span class="status-pill" id="sync-status">Connected</span>
-        <button id="btn-sync" class="btn btn-secondary">Sync Data</button>
-      </div>
-    </header>
-
-    <!-- Top KPI Cards Grid -->
-    <section class="summary-grid">
-      <div class="card kpi-card">
-        <span class="kpi-label">Safe-to-Spend</span>
-        <div class="kpi-value positive" id="val-safe-spend">$0.00</div>
-      </div>
-      <div class="card kpi-card">
-        <span class="kpi-label">Coffee Allowance</span>
-        <div class="kpi-value coffee" id="val-coffee-allowance">$0.00</div>
-      </div>
-      <div class="card kpi-card">
-        <span class="kpi-label">Upcoming Outflow</span>
-        <div class="kpi-value negative" id="val-upcoming-outflow">$0.00</div>
-      </div>
-    </section>
-
-    <!-- Main Section Split -->
-    <section class="main-content-grid">
-      
-      <!-- Recent Transactions Table Card -->
-      <div class="card table-card">
-        <div class="card-header">
-          <h2>Recent Transactions</h2>
-          <div class="table-actions">
-            <button id="btn-add-transaction" class="btn btn-primary">+ Add Spend</button>
-          </div>
-        </div>
-        
-        <div class="table-responsive">
-          <table class="transaction-table">
-            <thead>
-              <tr>
-                <th class="text-left">Date</th>
-                <th class="text-left">Description</th>
-                <th class="text-left">Category</th>
-                <th class="text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody id="transaction-rows">
-              <!-- Dynamically populated rows via app.js -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Quick Budget Settings Side Panel -->
-      <div class="card settings-card">
-        <div class="card-header">
-          <h2>Budget Rules</h2>
-        </div>
-        <form id="settings-form" class="settings-form">
-          <div class="form-group">
-            <label for="setting-coffee-cap">Weekly Coffee Cap ($)</label>
-            <input type="number" id="setting-coffee-cap" class="form-input" value="35" min="0" step="1">
-          </div>
-          <div class="form-group">
-            <label for="setting-savings-target">Savings Target (%)</label>
-            <input type="number" id="setting-savings-target" class="form-input" value="20" min="0" max="100">
-          </div>
-          <button type="submit" class="btn btn-secondary btn-full">Save Preferences</button>
-        </form>
-      </div>
-
-    </section>
-
-  </div>
-
-  <script src="js/app.js"></script>
 </body>
 </html>
