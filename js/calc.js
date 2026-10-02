@@ -46,7 +46,7 @@ export function summarise(rows) {
 }
 
 // short: ends negative. dip: ends fine but runs out part way through.
-// zero: fully assigned. low: money left but under the warning amount. spare: comfortable amount left.
+// zero: balance of about nothing. low: balance under the warning amount. spare: comfortable balance.
 export const status = (net, tol = 1, shortOn = null, warn = 0) =>
   net < -tol ? 'short' : shortOn ? 'dip' : Math.abs(net) <= tol ? 'zero' : net < warn ? 'low' : 'spare';
 

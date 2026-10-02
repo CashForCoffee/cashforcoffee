@@ -19,10 +19,10 @@ function rebuild() {
   const ks = [...S.P.keys()]; S.min = Math.min(...ks); S.max = Math.max(...ks);
 }
 const cats = () => [...new Set([...Object.keys(COLOR), ...S.rows.map(r => r.category)])].sort();
-const LABEL = { short: 'Short by', dip: 'To assign', spare: 'To assign', low: 'Low, to assign', zero: 'Assigned' };
+const LABEL = { short: 'Short by', dip: 'Balance', spare: 'Balance', low: 'Low balance', zero: 'Balance' };
 const STYLE = { short: ['var(--out)', 'var(--onout)'], dip: ['var(--out)', 'var(--onout)'], low: ['var(--warn)', 'var(--onwarn)'], spare: ['var(--sun)', 'var(--sunink)'], zero: ['var(--in)', 'var(--onin)'] };
 function pill(s, t) {
-  const txt = { short: `Short ${money(-s.net)}`, dip: `Runs out ${shortDate(s.shortOn)}`, low: `${money(s.net)} low`, spare: `${money(s.net)} to assign`, zero: 'Fully assigned' }[t];
+  const txt = { short: `Short ${money(-s.net)}`, dip: `Runs out ${shortDate(s.shortOn)}`, low: `${money(s.net)} low balance`, spare: `${money(s.net)} balance`, zero: `${money(s.net)} balance` }[t];
   return `<span class="inline-block rounded-full px-3 py-1 text-sm font-semibold num whitespace-nowrap" style="background:${STYLE[t][0]};color:${STYLE[t][1]}">${txt}</span>`;
 }
 const amountBox = (s, t) => `<div class="rounded-2xl px-3 py-2 text-right flex-none" style="background:${STYLE[t][0]};color:${STYLE[t][1]}"><div class="num d text-2xl font-extrabold leading-none">${money(Math.abs(s.net))}</div><div class="text-xs mt-1 font-semibold">${LABEL[t]}</div></div>`;
@@ -50,7 +50,9 @@ function strip(rows, r) {
 function renderNow() {
   const rows = S.P.get(S.cur) || [], s = summarise(rows), t = status(s.net, TOL, s.shortOn, WARN), r = periodRange(S.cur, ANCHOR);
   const pct = s.exp ? Math.round(s.paidE / s.exp * 100) : 0, p = parts(s.unpE);
+  const late = S.rows.filter(x => !x.paid && x.date < r.start).length;
   $('#v-now').innerHTML = `<header class="mb-4"><h1 class="d text-3xl font-extrabold">This pay</h1><p class="mute">${rangeLabel(r)} · day ${daysBetween(r.start, TODAY) + 1} of 14 · next pay ${dayLabel(r.next)}</p></header>
+  <div id="nowTop" ${S.q.trim() ? 'hidden' : ''}>
   <div class="card rounded-3xl p-5 mb-5">
     <p class="mute">Still to pay before pay day</p>
     <p class="num d text-6xl font-extrabold leading-none mt-1">${p.d}<span class="text-3xl mute">.${p.c}</span></p>
@@ -63,6 +65,8 @@ function renderNow() {
     </div>
     ${t === 'dip' ? `<p class="mt-3 font-semibold" style="color:var(--out)">Runs out on ${dayLabel(s.shortOn)}, then recovers.</p>` : ''}
     <div class="mt-5">${strip(rows, r)}</div>
+  </div>
+  ${late ? `<button class="card rounded-2xl w-full text-left p-4 mb-4 flex items-center justify-between gap-3" data-catchup><span><b>Catch up</b><span class="block text-sm mute">${late} items from past pays are not ticked</span></span><span class="text-2xl mute">›</span></button>` : ''}
   </div>
   <div class="flex gap-2 pb-3" role="group" aria-label="Filter">
     ${[['unpaid', 'To pay'], ['all', 'Everything']].map(([k, n]) => `<button class="chip" aria-pressed="${S.filter === k}" data-f="${k}">${n}</button>`).join('')}</div>
@@ -105,7 +109,7 @@ function renderAhead() {
   $('#v-ahead').innerHTML = `<h1 class="d text-3xl font-extrabold mb-1">Ahead</h1><p class="mute mb-5">${all.length} pays planned, to ${shortDate(periodRange(S.max, ANCHOR).end, true)}.</p>
   <div class="grid grid-cols-2 gap-3 mb-5">
     <div class="card rounded-3xl p-4"><p class="mute text-sm">Short or low pays</p><p class="d text-5xl font-extrabold num" style="color:${shorts.length ? 'var(--out)' : attn.length ? 'var(--warn)' : 'var(--in)'}">${attn.length}</p><p class="text-sm mt-1">${nxt ? `${shorts.length} short. Next: ${shortDate(periodRange(nxt.k, ANCHOR).start)}, ${money(nxt.s.net)}` : 'None planned'}</p></div>
-    <div class="card rounded-3xl p-4"><p class="mute text-sm">Still to assign</p><p class="d text-4xl font-extrabold num leading-tight">${money(toAssign).replace(/\.\d\d$/, '')}</p><p class="text-sm mt-1">Across ${all.filter(x => x.s.net > TOL).length} pays</p></div></div>
+    <div class="card rounded-3xl p-4"><p class="mute text-sm">Balance ahead</p><p class="d text-4xl font-extrabold num leading-tight">${money(toAssign).replace(/\.\d\d$/, '')}</p><p class="text-sm mt-1">Across ${all.filter(x => x.s.net > TOL).length} pays with money left</p></div></div>
   <div class="flex gap-2 pb-3" role="group" aria-label="Filter">${[['all', 'All'], ['attn', 'Short or low']].map(([k, n]) => `<button class="chip" aria-pressed="${S.af === k}" data-af="${k}">${n}</button>`).join('')}</div>
   <ol class="space-y-3 mt-2">${list.map(({ k, s, t, r }) => {
     const bdays = r.filter(x => x.category === 'Birthday'), rg = periodRange(k, ANCHOR);
@@ -123,7 +127,7 @@ function renderEverything() {
   <div class="flex gap-2 overflow-x-auto pb-3 -mx-4 px-4" role="group" aria-label="Filter">
     <button class="chip" aria-pressed="${S.hidePast}" data-hide>${S.hidePast ? 'Past pays hidden' : 'Past pays shown'}</button>
     ${[['all', 'All'], ['unpaid', 'To pay']].map(([k, n]) => `<button class="chip" aria-pressed="${S.ef === k}" data-ef="${k}">${n}</button>`).join('')}</div>
-  ${late && S.hidePast ? `<button class="card rounded-2xl w-full text-left p-4 mb-4 flex items-center justify-between gap-3" data-catchup><span><b>${late} items</b> in past pays are not ticked<span class="block text-sm mute">Show them so the numbers stay honest</span></span><span class="text-2xl mute">›</span></button>` : ''}
+  ${late && S.hidePast ? `<button class="card rounded-2xl w-full text-left p-4 mb-4 flex items-center justify-between gap-3" data-catchup><span><b>Catch up</b><span class="block text-sm mute">${late} items from past pays are not ticked</span></span><span class="text-2xl mute">›</span></button>` : ''}
   <div id="evlist"></div>`;
   renderEvList();
 }
@@ -227,7 +231,7 @@ document.addEventListener('click', e => {
   else if (b.dataset.ef) { S.ef = b.dataset.ef; render(); }
   else if ('hide' in b.dataset) { S.hidePast = !S.hidePast; render(); }
   else if ('more' in b.dataset) { S.evCount += 4; renderEvList(); }
-  else if ('catchup' in b.dataset) { S.hidePast = false; S.ef = 'unpaid'; S.evCount = 12; render(); }
+  else if ('catchup' in b.dataset) { S.hidePast = false; S.ef = 'unpaid'; S.evCount = 12; setView('everything'); }
   else if (b.dataset.af) { S.af = b.dataset.af; render(); }
   else if (b.dataset.pp) { S.pp = Math.min(S.max, Math.max(S.min, S.pp + +b.dataset.pp)); render(); }
   else if ('ppNow' in b.dataset) { S.pp = S.cur; render(); }
@@ -247,6 +251,14 @@ $('#fName').addEventListener('change', () => {   // reuse category and amount fr
   if (S.editing || $('#fAmt').value) return;
   const m = [...S.rows].reverse().find(r => r.item.toLowerCase() === $('#fName').value.trim().toLowerCase());
   if (m) { $('#fAmt').value = m.amount; $('#fCat').value = m.category; setType(m.type); }
+});
+document.addEventListener('focusin', e => {
+  if (e.target.id !== 'srch') return;
+  $('#nowTop').hidden = true; requestAnimationFrame(() => window.scrollTo(0, 0));
+});
+document.addEventListener('focusout', e => {
+  if (e.target.id !== 'srch') return;
+  setTimeout(() => { const t = $('#nowTop'); if (t && !S.q.trim() && document.activeElement?.id !== 'srch') t.hidden = false; }, 250);
 });
 desktop.addEventListener('change', () => { if (desktop.matches) openSheet(); else closeSheet(); });
 

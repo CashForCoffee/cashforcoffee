@@ -14,8 +14,8 @@ Static site (HTML, Tailwind via CDN, ES modules). No build step. Talks straight 
 ## How the numbers work
 - Fortnights are 14 day blocks counted from `anchorDate`. No opening balance.
 - Per fortnight: money in minus money out. Within one day, income counts before spending.
-- Status: Fully assigned (within `balanceTolerance` of zero), To assign (money left), Short (ends negative), Runs out (dips below zero part way, then recovers).
-- Each fortnight is judged on its own. Leftover money is assumed to be assigned by adding an item, as you do now.
+- Balance is money in minus money out for the pay. Colours: green when within `balanceTolerance` of zero, saffron for a comfortable balance, orange under `warnBelow`, red when short (ends negative) or runs out part way.
+- Each fortnight is judged on its own. Leftover money is assumed to be allocated by adding an item, as you do now.
 
 ## Files
 - `js/config.js` settings. `js/calc.js` maths and formatting. `js/data.js` Supabase. `js/app.js` screens. `css/style.css` colour tokens and small components.

@@ -16,8 +16,9 @@ body{background:var(--bg);color:var(--ink);font-family:'Instrument Sans',system-
 .chk[aria-checked="true"] i{background:var(--in);border-color:var(--in);color:var(--onin)}
 html{-webkit-text-size-adjust:100%}
 input[type=search]{-webkit-appearance:none}
-input,select,textarea{font-size:16px!important;background:var(--bg);border:1px solid var(--line);border-radius:12px;min-height:48px;padding:0 14px;width:100%;font-size:16px;color:var(--ink)}
-textarea{padding:12px 14px}
+body input,body select,body textarea{font-size:16px!important;background:var(--bg);border:1px solid var(--line);border-radius:12px;min-height:52px;padding:0 16px;width:100%;color:var(--ink)}
+body textarea{padding:14px 16px}
+body select{-webkit-appearance:none;appearance:none;height:52px;padding-right:44px;text-overflow:ellipsis;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' fill='none' stroke='%238a9b96' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center}
 :focus-visible{outline:3px solid var(--sun);outline-offset:2px}
 #sheet{transition:transform .25s ease,visibility 0s}
 @media (prefers-reduced-motion:reduce){#sheet{transition:none}}
