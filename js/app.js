@@ -91,12 +91,12 @@ async function loadAll(){
   state.itemsLoaded=true;
   render();
 }
-function summaryCards(p){const s=periodStats(p);return `<section class="summary">
+function summaryCards(p){const s=periodStats(p),expectedBalance=p.income-s.outgoings;return `<section class="summary">
   <div class="summary-card income"><div class="summary-label">${icon('arrow-down-circle')} Income</div><div class="summary-value mono">${money(p.income)}</div><div class="summary-note">This fortnight</div></div>
   <div class="summary-card expense"><div class="summary-label">${icon('arrow-up-circle')} Outgoings</div><div class="summary-value mono">${money(s.outgoings)}</div><div class="summary-note">Including savings</div></div>
-  <div class="summary-card remaining"><div class="summary-label">${icon('wallet')} Remaining outgoings</div><div class="summary-value mono" data-metric="period-remaining">${money(s.remainingOutgoings)}</div><div class="summary-note">Still to leave the main account</div></div>
-  <div class="summary-card expected"><div class="summary-label">${icon('piggy-bank')} Expected balance</div><div class="summary-value mono ${p.balance<0?'negative':''}">${money(p.balance)}</div><div class="summary-note">End of fortnight</div></div>
+  <div class="summary-card expected"><div class="summary-label">${icon('piggy-bank')} Expected balance</div><div class="summary-value mono ${expectedBalance<0?'negative':''}">${money(expectedBalance)}</div><div class="summary-note">This fortnight</div></div>
   <div class="summary-card savings"><div class="summary-label">${icon('coins')} Savings</div><div class="summary-value mono">${money(s.savings)}</div><div class="summary-note">Savings & sinking funds</div></div>
+  <div class="summary-card remaining"><div class="summary-label">${icon('wallet')} Remaining outgoings</div><div class="summary-value mono" data-metric="period-remaining">${money(s.remainingOutgoings)}</div><div class="summary-note">Still to leave the main account</div></div>
 </section>`}
 function categoryOptions(selected){return categorySelectOptions(selected,true)}
 function periodVisibleItems(p){const q=state.search.trim().toLowerCase();return p.items.filter(i=>{const hit=!q||[i.item,i.category,i.notes,i.type,i.date].some(v=>String(v||'').toLowerCase().includes(q));const f=state.filter==='all'||(state.filter==='paid'&&i.paid)||(state.filter==='unpaid'&&!i.paid);const c=state.category==='all'||i.category===state.category;return hit&&f&&c}).sort(itemSort)}
