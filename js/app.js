@@ -5,11 +5,11 @@ import { todayISO, periodIndex, periodRange, groupByPeriod, summarise, status, c
 
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const TODAY = todayISO(), TOL = CONFIG.balanceTolerance, ANCHOR = CONFIG.anchorDate;
+const TODAY = todayISO(), TOL = CONFIG.balanceTolerance, WARN = CONFIG.warnBelow, ANCHOR = CONFIG.anchorDate;
 const COLOR = { 'Birthday': '#c2255c', 'Debt / Pay Later': '#e8590c', 'Fixed Essential Bills': '#3b5bdb', 'Income': '#0b7a63',
   'Lifestyle': '#0c8599', 'Savings & Sinking Funds': '#2f9e44', 'Variable Essentials': '#e8a200' };
 const col = c => COLOR[c] || '#868e96';
-const S = { rows: [], P: new Map(), pp: 0, cur: 0, min: 0, max: 0, view: 'now', filter: 'unpaid', af: 'all', q: '', editing: null, type: 'Expense' };
+const S = { rows: [], P: new Map(), pp: 0, cur: 0, min: 0, max: 0, view: 'now', filter: 'unpaid', af: 'all', q: '', eq: '', ef: 'all', hidePast: true, evCount: 4, focusPP: null, editing: null, type: 'Expense' };
 const desktop = matchMedia('(min-width:1024px)');
 
 /* ---------- helpers ---------- */
@@ -19,15 +19,13 @@ function rebuild() {
   const ks = [...S.P.keys()]; S.min = Math.min(...ks); S.max = Math.max(...ks);
 }
 const cats = () => [...new Set([...Object.keys(COLOR), ...S.rows.map(r => r.category)])].sort();
-function statusText(s, t) {
-  return { short: `Short by ${money(-s.net)}${s.shortOn ? ' · runs out ' + shortDate(s.shortOn) : ''}`,
-    dip: `Runs out on ${dayLabel(s.shortOn)}, then recovers`, spare: `${money(s.net)} left to assign`, zero: 'Every dollar assigned' }[t];
-}
-const STYLE = { short: ['var(--out)', 'var(--onout)'], dip: ['var(--out)', 'var(--onout)'], spare: ['var(--sun)', 'var(--sunink)'], zero: ['var(--in)', 'var(--onin)'] };
+const LABEL = { short: 'Short by', dip: 'To assign', spare: 'To assign', low: 'Low, to assign', zero: 'Assigned' };
+const STYLE = { short: ['var(--out)', 'var(--onout)'], dip: ['var(--out)', 'var(--onout)'], low: ['var(--warn)', 'var(--onwarn)'], spare: ['var(--sun)', 'var(--sunink)'], zero: ['var(--in)', 'var(--onin)'] };
 function pill(s, t) {
-  const txt = { short: `Short ${money(-s.net)}`, dip: `Runs out ${shortDate(s.shortOn)}`, spare: `${money(s.net)} to assign`, zero: 'Fully assigned' }[t];
+  const txt = { short: `Short ${money(-s.net)}`, dip: `Runs out ${shortDate(s.shortOn)}`, low: `${money(s.net)} low`, spare: `${money(s.net)} to assign`, zero: 'Fully assigned' }[t];
   return `<span class="inline-block rounded-full px-3 py-1 text-sm font-semibold num whitespace-nowrap" style="background:${STYLE[t][0]};color:${STYLE[t][1]}">${txt}</span>`;
 }
+const amountBox = (s, t) => `<div class="rounded-2xl px-3 py-2 text-right flex-none" style="background:${STYLE[t][0]};color:${STYLE[t][1]}"><div class="num d text-2xl font-extrabold leading-none">${money(Math.abs(s.net))}</div><div class="text-xs mt-1 font-semibold">${LABEL[t]}</div></div>`;
 const rangeLabel = r => { const y = r.start.slice(0, 4) !== TODAY.slice(0, 4); return `${shortDate(r.start)} to ${shortDate(r.end, y)}`; };
 
 /* ---------- Now ---------- */
@@ -50,26 +48,25 @@ function strip(rows, r) {
   }).join('')}</div><div class="flex justify-between text-xs mute mt-1"><span>${shortDate(r.start)}</span><span>Next pay ${shortDate(r.next)}</span></div>`;
 }
 function renderNow() {
-  const rows = S.P.get(S.pp) || [], s = summarise(rows), t = status(s.net, TOL, s.shortOn), r = periodRange(S.pp, ANCHOR);
-  const isCur = S.pp === S.cur, label = isCur ? 'Still to pay before pay day' : S.pp < S.cur ? 'Left unpaid' : 'Planned to pay';
+  const rows = S.P.get(S.cur) || [], s = summarise(rows), t = status(s.net, TOL, s.shortOn, WARN), r = periodRange(S.cur, ANCHOR);
   const pct = s.exp ? Math.round(s.paidE / s.exp * 100) : 0, p = parts(s.unpE);
-  const overdue = S.rows.filter(x => !x.paid && x.date < TODAY).length;
-  $('#v-now').innerHTML = `${periodBar()}
+  $('#v-now').innerHTML = `<header class="mb-4"><h1 class="d text-3xl font-extrabold">This pay</h1><p class="mute">${rangeLabel(r)} · day ${daysBetween(r.start, TODAY) + 1} of 14 · next pay ${dayLabel(r.next)}</p></header>
   <div class="card rounded-3xl p-5 mb-5">
-    <p class="mute">${label}</p>
+    <p class="mute">Still to pay before pay day</p>
     <p class="num d text-6xl font-extrabold leading-none mt-1">${p.d}<span class="text-3xl mute">.${p.c}</span></p>
     <div class="h-3 rounded-full mt-4 overflow-hidden" style="background:var(--line)" role="img" aria-label="${pct} percent of spending paid"><div class="h-full" style="width:${pct}%;background:var(--in)"></div></div>
     <div class="flex justify-between text-sm mt-2"><span><b class="num">${money(s.paidE)}</b> <span class="mute">paid</span></span><span class="mute num">${pct}% of ${money(s.exp)}</span></div>
-    <div class="grid grid-cols-2 gap-4 my-4 pt-4 border-t line">
-      <div><p class="mute text-sm">Money in</p><p class="num d text-2xl font-bold" style="color:var(--in)">${money(s.inc)}</p>${s.unpI > 0.005 ? `<p class="text-sm mute num">${money(s.unpI)} still to arrive</p>` : ''}</div>
-      <div><p class="mute text-sm">Money out</p><p class="num d text-2xl font-bold">${money(s.exp)}</p></div></div>
-    <div class="rounded-2xl px-4 py-3 font-semibold" style="background:${STYLE[t][0]};color:${STYLE[t][1]}">${statusText(s, t)}</div>
+    <div class="grid grid-cols-3 gap-2 mt-4 pt-4 border-t line items-start">
+      <div><p class="mute text-sm">Money in</p><p class="num d text-xl font-bold" style="color:var(--in)">${money(s.inc)}</p>${s.unpI > 0.005 ? `<p class="text-xs mute num">${money(s.unpI)} to arrive</p>` : ''}</div>
+      <div><p class="mute text-sm">Money out</p><p class="num d text-xl font-bold">${money(s.exp)}</p></div>
+      <div class="rounded-2xl p-2 -mt-1" style="background:${STYLE[t][0]};color:${STYLE[t][1]}"><p class="text-sm font-semibold">${LABEL[t]}</p><p class="num d text-xl font-extrabold">${money(Math.abs(s.net))}</p></div>
+    </div>
+    ${t === 'dip' ? `<p class="mt-3 font-semibold" style="color:var(--out)">Runs out on ${dayLabel(s.shortOn)}, then recovers.</p>` : ''}
     <div class="mt-5">${strip(rows, r)}</div>
   </div>
-  ${overdue ? `<button class="card rounded-2xl w-full text-left p-4 mb-4 flex items-center justify-between gap-3" data-f="catch"><span><b>${overdue} items</b> are past their date and not ticked<span class="block text-sm mute">Tick them off or move them so the numbers stay honest</span></span><span class="text-2xl mute">›</span></button>` : ''}
-  <div class="flex gap-2 overflow-x-auto pb-3 -mx-4 px-4" role="group" aria-label="Filter">
-    ${[['unpaid', 'To pay'], ['paid', 'Paid'], ['all', 'Everything'], ...(overdue ? [['catch', `Catch up (${overdue})`]] : [])].map(([k, n]) => `<button class="chip" aria-pressed="${S.filter === k && !S.q}" data-f="${k}">${n}</button>`).join('')}</div>
-  <label class="sr-only" for="srch">Search</label><input id="srch" type="search" placeholder="Search every fortnight" value="${esc(S.q)}" class="mb-4">
+  <div class="flex gap-2 pb-3" role="group" aria-label="Filter">
+    ${[['unpaid', 'To pay'], ['all', 'Everything']].map(([k, n]) => `<button class="chip" aria-pressed="${S.filter === k}" data-f="${k}">${n}</button>`).join('')}</div>
+  <label class="sr-only" for="srch">Search this pay</label><input id="srch" type="search" placeholder="Search this pay" value="${esc(S.q)}" class="mb-4">
   <div id="list"></div>`;
   renderList();
 }
@@ -79,46 +76,74 @@ const row = x => `<li class="flex items-center gap-1 border-b line last:border-0
     <span class="w-1.5 self-stretch rounded-full" style="background:${col(x.category)}"></span>
     <span class="flex-1 min-w-0"><span class="block font-semibold truncate ${x.paid ? 'line-through' : ''}">${esc(x.item)}</span><span class="block text-sm mute truncate">${esc(x.category)}${x.notes ? ' · ' + esc(x.notes) : ''}</span></span>
     <span class="num d font-bold text-lg" style="color:${x.type === 'Income' ? 'var(--in)' : 'var(--ink)'}">${money(x.amount, { sign: x.type === 'Income' })}</span></button></li>`;
+const todayLine = `<div class="flex items-center gap-3 my-3" role="separator" aria-label="Today"><span class="h-0.5 flex-1" style="background:var(--sun)"></span><span class="d font-bold px-3 py-1 rounded-full text-sm" style="background:var(--sun);color:var(--sunink)">Today</span><span class="h-0.5 flex-1" style="background:var(--sun)"></span></div>`;
+const matches = (x, q) => !q || `${x.item} ${x.category} ${x.notes}`.toLowerCase().includes(q);
+function dayCard(d, items) {
+  const out = items.filter(x => x.type === 'Expense').reduce((s, x) => s + x.amount, 0);
+  return `<div class="card rounded-2xl mb-3 px-3"><div class="flex justify-between pt-3 pb-1 px-1"><h3 class="d font-bold">${dayLabel(d)}</h3><span class="mute text-sm num">${out ? money(out) + ' out' : ''}</span></div><ul>${items.map(row).join('')}</ul></div>`;
+}
 function renderList() {
-  const q = S.q.trim().toLowerCase(); let rows, wide = false, note = '';
-  if (q) { rows = S.rows.filter(x => `${x.item} ${x.category} ${x.notes}`.toLowerCase().includes(q)); wide = true; note = `${rows.length} matches across every fortnight`; }
-  else if (S.filter === 'catch') { rows = S.rows.filter(x => !x.paid && x.date < TODAY); wide = true; note = 'Past their date but not ticked'; }
-  else rows = (S.P.get(S.pp) || []).filter(x => S.filter === 'all' || (S.filter === 'unpaid' ? !x.paid : x.paid));
-  rows = [...rows].sort(cmp); if (rows.length > 150) { rows = rows.slice(0, 150); note += ' (showing the first 150)'; }
+  const q = S.q.trim().toLowerCase();
+  const rows = (S.P.get(S.cur) || []).filter(x => (S.filter === 'all' || !x.paid) && matches(x, q)).sort(cmp);
   const g = {}; rows.forEach(x => (g[x.date] = g[x.date] || []).push(x));
-  let html = note ? `<p class="mute text-sm mb-3">${note}</p>` : '', line = false;
-  const showToday = !wide && S.pp === S.cur && S.filter !== 'paid';
-  const todayLine = `<div class="flex items-center gap-3 my-3" role="separator" aria-label="Today"><span class="h-0.5 flex-1" style="background:var(--sun)"></span><span class="d font-bold px-3 py-1 rounded-full text-sm" style="background:var(--sun);color:var(--sunink)">Today</span><span class="h-0.5 flex-1" style="background:var(--sun)"></span></div>`;
-  const keys = Object.keys(g);
-  if (!keys.length) html += `<p class="card rounded-2xl p-6 text-center mute">${q ? 'Nothing matches that search.' : S.filter === 'unpaid' ? 'Nothing left to pay in this fortnight.' : 'Nothing to show here.'}</p>`;
+  const keys = Object.keys(g); let html = '', line = false;
+  if (!keys.length) html = `<p class="card rounded-2xl p-6 text-center mute">${q ? 'Nothing in this pay matches that search.' : 'Nothing left to pay in this pay.'}</p>`;
   for (const d of keys) {
-    if (showToday && !line && d >= TODAY) { html += todayLine; line = true; }
-    const out = g[d].filter(x => x.type === 'Expense').reduce((s, x) => s + x.amount, 0);
-    html += `<div class="card rounded-2xl mb-3 px-3"><div class="flex justify-between pt-3 pb-1 px-1"><h3 class="d font-bold">${dayLabel(d, wide)}</h3><span class="mute text-sm num">${out ? money(out) + ' out' : ''}</span></div><ul>${g[d].map(row).join('')}</ul></div>`;
+    if (!line && d >= TODAY) { html += todayLine; line = true; }
+    html += dayCard(d, g[d]);
   }
-  if (showToday && !line) html += todayLine;
+  if (keys.length && !line) html += todayLine;
   $('#list').innerHTML = html;
 }
 
 /* ---------- Ahead ---------- */
 function renderAhead() {
-  const all = []; for (let k = S.cur + 1; k <= S.max; k++) { const s = summarise(S.P.get(k) || []); all.push({ k, s, t: status(s.net, TOL, s.shortOn), r: S.P.get(k) || [] }); }
-  const bad = all.filter(x => x.t === 'short' || x.t === 'dip'), spare = all.filter(x => x.t === 'spare');
-  const toAssign = spare.reduce((a, x) => a + x.s.net, 0), nxt = bad[0];
-  const list = all.filter(x => S.af === 'all' || (S.af === 'short' ? x.t === 'short' || x.t === 'dip' : x.t === 'spare'));
-  const vals = all.flatMap(x => [x.s.inc, x.s.exp]).sort((a, b) => b - a), mx = Math.max(vals[0] || 1, 1);
-  $('#v-ahead').innerHTML = `<h1 class="d text-3xl font-extrabold mb-1">Ahead</h1><p class="mute mb-5">${all.length} fortnights planned, to ${shortDate(periodRange(S.max, ANCHOR).end, true)}.</p>
+  const all = []; for (let k = S.cur + 1; k <= S.max; k++) { const s = summarise(S.P.get(k) || []); all.push({ k, s, t: status(s.net, TOL, s.shortOn, WARN), r: S.P.get(k) || [] }); }
+  const attn = all.filter(x => ['short', 'dip', 'low'].includes(x.t)), shorts = attn.filter(x => x.t === 'short' || x.t === 'dip');
+  const toAssign = all.reduce((a, x) => a + Math.max(x.s.net, 0), 0), nxt = attn[0];
+  const list = all.filter(x => S.af === 'all' || attn.includes(x));
+  $('#v-ahead').innerHTML = `<h1 class="d text-3xl font-extrabold mb-1">Ahead</h1><p class="mute mb-5">${all.length} pays planned, to ${shortDate(periodRange(S.max, ANCHOR).end, true)}.</p>
   <div class="grid grid-cols-2 gap-3 mb-5">
-    <div class="card rounded-3xl p-4"><p class="mute text-sm">Fortnights that run short</p><p class="d text-5xl font-extrabold num" style="color:${bad.length ? 'var(--out)' : 'var(--in)'}">${bad.length}</p><p class="text-sm mt-1">${nxt ? `Next: ${rangeLabel(periodRange(nxt.k, ANCHOR))}, ${nxt.t === 'short' ? 'short ' + money(-nxt.s.net) : 'runs out ' + shortDate(nxt.s.shortOn)}` : 'None planned'}</p></div>
-    <div class="card rounded-3xl p-4"><p class="mute text-sm">Still to assign</p><p class="d text-4xl font-extrabold num leading-tight">${money(toAssign).replace(/\.\d\d$/, '')}</p><p class="text-sm mt-1">Across ${spare.length} fortnights</p></div></div>
-  <div class="flex gap-2 overflow-x-auto pb-3 -mx-4 px-4" role="group" aria-label="Filter">${[['all', 'All'], ['short', 'Short'], ['spare', 'To assign']].map(([k, n]) => `<button class="chip" aria-pressed="${S.af === k}" data-af="${k}">${n}</button>`).join('')}</div>
+    <div class="card rounded-3xl p-4"><p class="mute text-sm">Short or low pays</p><p class="d text-5xl font-extrabold num" style="color:${shorts.length ? 'var(--out)' : attn.length ? 'var(--warn)' : 'var(--in)'}">${attn.length}</p><p class="text-sm mt-1">${nxt ? `${shorts.length} short. Next: ${shortDate(periodRange(nxt.k, ANCHOR).start)}, ${money(nxt.s.net)}` : 'None planned'}</p></div>
+    <div class="card rounded-3xl p-4"><p class="mute text-sm">Still to assign</p><p class="d text-4xl font-extrabold num leading-tight">${money(toAssign).replace(/\.\d\d$/, '')}</p><p class="text-sm mt-1">Across ${all.filter(x => x.s.net > TOL).length} pays</p></div></div>
+  <div class="flex gap-2 pb-3" role="group" aria-label="Filter">${[['all', 'All'], ['attn', 'Short or low']].map(([k, n]) => `<button class="chip" aria-pressed="${S.af === k}" data-af="${k}">${n}</button>`).join('')}</div>
   <ol class="space-y-3 mt-2">${list.map(({ k, s, t, r }) => {
-    const tags = r.filter(x => x.category === 'Birthday' || x.category === 'Debt / Pay Later'), rg = periodRange(k, ANCHOR);
-    return `<li><button class="card rounded-2xl p-4 w-full text-left" data-goto="${k}" ${t === 'short' || t === 'dip' ? 'style="border-color:var(--out)"' : ''}>
-      <div class="flex justify-between items-start gap-3"><div><span class="d font-bold text-lg">${rangeLabel(rg)}</span><span class="block text-sm mute num">In ${money(s.inc)} · Out ${money(s.exp)}</span></div>${pill(s, t)}</div>
-      <div class="mt-3 space-y-1.5" aria-hidden="true"><div class="h-2.5 rounded-full" style="width:${s.inc / mx * 100}%;background:var(--in)"></div><div class="h-2.5 rounded-full" style="width:${s.exp / mx * 100}%;background:${t === 'short' ? 'var(--out)' : 'var(--ink)'}"></div></div>
-      ${tags.length ? `<p class="text-sm mt-3 flex flex-wrap gap-1.5">${tags.slice(0, 3).map(x => `<span class="rounded-full px-2.5 py-1" style="background:var(--bg)">${esc(x.item)} ${money(x.amount)}</span>`).join('')}${tags.length > 3 ? `<span class="mute py-1">+${tags.length - 3} more</span>` : ''}</p>` : ''}</button></li>`;
-  }).join('') || '<li class="card rounded-2xl p-6 text-center mute">No fortnights match.</li>'}</ol>`;
+    const bdays = r.filter(x => x.category === 'Birthday'), rg = periodRange(k, ANCHOR);
+    return `<li><button class="card rounded-2xl p-4 w-full text-left" data-goto="${k}" ${t === 'short' || t === 'dip' ? 'style="border-color:var(--out)"' : t === 'low' ? 'style="border-color:var(--warn)"' : ''}>
+      <div class="flex justify-between items-center gap-3"><div class="min-w-0"><span class="d font-bold text-lg block">${rangeLabel(rg)}</span><span class="text-sm mute">Pay day ${dayLabel(rg.start)}</span>${t === 'dip' ? `<span class="block text-sm font-semibold" style="color:var(--out)">Runs out ${shortDate(s.shortOn)}</span>` : ''}</div>${amountBox(s, t)}</div>
+      ${bdays.length ? `<p class="text-sm mt-3 flex flex-wrap gap-1.5">${bdays.slice(0, 3).map(x => `<span class="rounded-full px-2.5 py-1" style="background:var(--bg)">${esc(x.item)} ${money(x.amount)}</span>`).join('')}${bdays.length > 3 ? `<span class="mute py-1">+${bdays.length - 3} more</span>` : ''}</p>` : ''}</button></li>`;
+  }).join('') || '<li class="card rounded-2xl p-6 text-center mute">No pays match.</li>'}</ol>`;
+}
+
+/* ---------- Everything ---------- */
+function renderEverything() {
+  const late = S.rows.filter(x => !x.paid && x.date < periodRange(S.cur, ANCHOR).start).length;
+  $('#v-everything').innerHTML = `<h1 class="d text-3xl font-extrabold mb-1">Everything</h1><p class="mute mb-4">Every planned item, grouped by pay.</p>
+  <label class="sr-only" for="esrch">Search every pay</label><input id="esrch" type="search" placeholder="Search every pay" value="${esc(S.eq)}" class="mb-3">
+  <div class="flex gap-2 overflow-x-auto pb-3 -mx-4 px-4" role="group" aria-label="Filter">
+    <button class="chip" aria-pressed="${S.hidePast}" data-hide>${S.hidePast ? 'Past pays hidden' : 'Past pays shown'}</button>
+    ${[['all', 'All'], ['unpaid', 'To pay']].map(([k, n]) => `<button class="chip" aria-pressed="${S.ef === k}" data-ef="${k}">${n}</button>`).join('')}</div>
+  ${late && S.hidePast ? `<button class="card rounded-2xl w-full text-left p-4 mb-4 flex items-center justify-between gap-3" data-catchup><span><b>${late} items</b> in past pays are not ticked<span class="block text-sm mute">Show them so the numbers stay honest</span></span><span class="text-2xl mute">›</span></button>` : ''}
+  <div id="evlist"></div>`;
+  renderEvList();
+}
+function renderEvList() {
+  const q = S.eq.trim().toLowerCase();
+  const ks = [...S.P.keys()].sort((a, b) => a - b).filter(k => !S.hidePast || k >= S.cur);
+  let html = '', shown = 0, more = false;
+  for (const k of ks) {
+    const all = S.P.get(k), rows = all.filter(x => (S.ef === 'all' || !x.paid) && matches(x, q));
+    if (!rows.length) continue;
+    if (!q && shown >= S.evCount) { more = true; break; }
+    shown++;
+    const s = summarise(all), t = status(s.net, TOL, s.shortOn, WARN), r = periodRange(k, ANCHOR), g = {};
+    rows.forEach(x => (g[x.date] = g[x.date] || []).push(x));
+    html += `<section class="mb-6"><div id="pp-${k}" class="flex justify-between items-center gap-3 mb-2 scroll-mt-4"><div><h2 class="d font-bold text-lg">${rangeLabel(r)}</h2><p class="text-sm mute">${k === S.cur ? 'This pay' : k < S.cur ? 'Past pay' : 'Pay day ' + dayLabel(r.start)}</p></div>${pill(s, t)}</div>${Object.keys(g).map(d => dayCard(d, g[d])).join('')}</section>`;
+  }
+  if (!html) html = `<p class="card rounded-2xl p-6 text-center mute">${q ? 'Nothing matches that search.' : 'Nothing to show here.'}</p>`;
+  if (more) html += '<button class="chip w-full" data-more>Show more pays</button>';
+  $('#evlist').innerHTML = html;
+  if (S.focusPP !== null) { $('#pp-' + S.focusPP)?.scrollIntoView(); S.focusPP = null; }
 }
 
 /* ---------- Where ---------- */
@@ -141,9 +166,9 @@ function renderWhere() {
 }
 
 /* ---------- view control ---------- */
-function render() { ({ now: renderNow, ahead: renderAhead, where: renderWhere })[S.view](); }
+function render() { ({ now: renderNow, ahead: renderAhead, where: renderWhere, everything: renderEverything })[S.view](); }
 function setView(v) {
-  S.view = v; ['now', 'ahead', 'where'].forEach(k => $('#v-' + k).hidden = k !== v);
+  S.view = v; S.q = ''; S.eq = ''; ['now', 'ahead', 'where', 'everything'].forEach(k => $('#v-' + k).hidden = k !== v);
   $$('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.v === v)); window.scrollTo(0, 0); render();
 }
 
@@ -154,7 +179,7 @@ function setType(t) {
 }
 function openSheet(id) {
   const x = id ? S.rows.find(r => String(r.id) === String(id)) : null; S.editing = x || null;
-  const pr = periodRange(S.pp, ANCHOR), d0 = S.pp === S.cur || (TODAY >= pr.start && TODAY <= pr.end) ? TODAY : pr.start;
+  const pr = periodRange(S.view === 'where' ? S.pp : S.cur, ANCHOR), d0 = TODAY >= pr.start && TODAY <= pr.end ? TODAY : pr.start;
   $('#sheetTitle').textContent = x ? 'Edit item' : 'Add item'; $('#saveBtn').textContent = x ? 'Save changes' : 'Save item';
   $('#delBtn').hidden = !x; $('#fErr').textContent = '';
   $('#fCat').innerHTML = cats().map(c => `<option>${esc(c)}</option>`).join('');
@@ -198,11 +223,15 @@ document.addEventListener('click', e => {
   if (b.dataset.v) setView(b.dataset.v);
   else if (b.dataset.tog) togglePaid(b.dataset.tog);
   else if (b.dataset.edit) openSheet(b.dataset.edit);
-  else if (b.dataset.f) { S.filter = b.dataset.f; S.q = ''; render(); }
+  else if (b.dataset.f) { S.filter = b.dataset.f; render(); }
+  else if (b.dataset.ef) { S.ef = b.dataset.ef; render(); }
+  else if ('hide' in b.dataset) { S.hidePast = !S.hidePast; render(); }
+  else if ('more' in b.dataset) { S.evCount += 4; renderEvList(); }
+  else if ('catchup' in b.dataset) { S.hidePast = false; S.ef = 'unpaid'; S.evCount = 12; render(); }
   else if (b.dataset.af) { S.af = b.dataset.af; render(); }
   else if (b.dataset.pp) { S.pp = Math.min(S.max, Math.max(S.min, S.pp + +b.dataset.pp)); render(); }
   else if ('ppNow' in b.dataset) { S.pp = S.cur; render(); }
-  else if (b.dataset.goto) { S.pp = +b.dataset.goto; S.filter = 'unpaid'; setView('now'); }
+  else if (b.dataset.goto) { const k = +b.dataset.goto, ks = [...S.P.keys()].filter(x => x >= S.cur).sort((x, y) => x - y); S.ef = 'all'; S.hidePast = true; S.evCount = Math.max(4, ks.indexOf(k) + 3); S.focusPP = k; setView('everything'); }
   else if (b.dataset.t) setType(b.dataset.t);
   else if (b.id === 'addBtn') openSheet();
   else if (b.id === 'closeBtn') closeSheet();
@@ -212,7 +241,8 @@ document.addEventListener('click', e => {
   else if (b.id === 'outBtn' || b.id === 'outBtn2') D.signOut();
 });
 $('#scrim').addEventListener('click', closeSheet);
-document.addEventListener('input', e => { if (e.target.id === 'srch') { S.q = e.target.value; renderList(); } });
+document.addEventListener('input', e => { if (e.target.id === 'srch') { S.q = e.target.value; renderList(); }
+  else if (e.target.id === 'esrch') { S.eq = e.target.value; renderEvList(); } });
 $('#fName').addEventListener('change', () => {   // reuse category and amount from the last entry with this name
   if (S.editing || $('#fAmt').value) return;
   const m = [...S.rows].reverse().find(r => r.item.toLowerCase() === $('#fName').value.trim().toLowerCase());

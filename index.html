@@ -2,7 +2,7 @@
 <html lang="en-AU">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="theme-color" content="#10231f">
 <title>Cash for Coffee</title>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -29,9 +29,10 @@
 
 <nav class="fixed bottom-0 inset-x-0 z-30 card border-x-0 border-b-0 flex lg:flex-col lg:static lg:border-0 lg:border-r lg:p-5 lg:gap-1 lg:h-screen lg:sticky lg:top-0" style="padding-bottom:env(safe-area-inset-bottom,0px)" role="tablist">
   <div class="hidden lg:block mb-8"><div class="d text-2xl font-extrabold leading-none">Cash for<br>Coffee</div><div id="people" class="mute text-sm mt-2"></div></div>
-  <button class="tab mute flex-1 lg:flex-none flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 min-h-[60px] lg:min-h-[48px] lg:px-3 text-sm lg:text-base" role="tab" data-v="now"><span class="pip w-8 h-1.5 lg:w-2 lg:h-2 rounded-full"></span>Now</button>
-  <button class="tab mute flex-1 lg:flex-none flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 min-h-[60px] lg:min-h-[48px] lg:px-3 text-sm lg:text-base" role="tab" data-v="ahead"><span class="pip w-8 h-1.5 lg:w-2 lg:h-2 rounded-full"></span>Ahead</button>
-  <button class="tab mute flex-1 lg:flex-none flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 min-h-[60px] lg:min-h-[48px] lg:px-3 text-sm lg:text-base" role="tab" data-v="where"><span class="pip w-8 h-1.5 lg:w-2 lg:h-2 rounded-full"></span>Where</button>
+  <button class="tab mute flex-1 lg:flex-none flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 min-h-[60px] lg:min-h-[48px] lg:px-3 text-[13px] lg:text-base" role="tab" data-v="now"><span class="pip w-8 h-1.5 lg:w-2 lg:h-2 rounded-full"></span>Now</button>
+  <button class="tab mute flex-1 lg:flex-none flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 min-h-[60px] lg:min-h-[48px] lg:px-3 text-[13px] lg:text-base" role="tab" data-v="ahead"><span class="pip w-8 h-1.5 lg:w-2 lg:h-2 rounded-full"></span>Ahead</button>
+  <button class="tab mute flex-1 lg:flex-none flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 min-h-[60px] lg:min-h-[48px] lg:px-3 text-[13px] lg:text-base" role="tab" data-v="where"><span class="pip w-8 h-1.5 lg:w-2 lg:h-2 rounded-full"></span>Where</button>
+  <button class="tab mute flex-1 lg:flex-none flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 min-h-[60px] lg:min-h-[48px] lg:px-3 text-[13px] lg:text-base" role="tab" data-v="everything"><span class="pip w-8 h-1.5 lg:w-2 lg:h-2 rounded-full"></span>Everything</button>
   <button id="addBtn" class="lg:hidden flex-1 flex items-center justify-center min-h-[60px] font-bold" style="color:var(--out)" aria-label="Add item"><span class="d text-4xl leading-none">+</span></button>
   <button id="outBtn" class="hidden lg:block mt-auto text-left mute min-h-[44px] px-3">Sign out</button>
 </nav>
@@ -45,6 +46,7 @@
     <section id="v-now"></section>
     <section id="v-ahead" hidden></section>
     <section id="v-where" hidden></section>
+    <section id="v-everything" hidden></section>
   </div>
 </main>
 
