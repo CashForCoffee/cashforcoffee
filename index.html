@@ -1,1 +1,83 @@
-<!doctype html><html lang="en-AU"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f7fb"><title>Cash for Coffee</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script><script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script><link rel="stylesheet" href="css/styles.css?v=scratch-1"></head><body><div id="app"><div class="boot">Loading Cash for Coffee…</div></div><div id="modal"></div><div id="toast" class="toast"></div><script src="js/app.js?v=scratch-1" defer></script></body></html>
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#10231f">
+<title>Cash for Coffee</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- sign in -->
+<section id="auth" class="min-h-screen grid place-items-center p-6" hidden>
+  <div class="w-full max-w-sm">
+    <h1 class="d text-5xl font-extrabold leading-none mb-2">Cash for<br>Coffee</h1>
+    <p class="mute mb-8">Sign in to see the household budget.</p>
+    <div class="space-y-4">
+      <div><label class="mute text-sm" for="aEmail">Email</label><input id="aEmail" type="email" autocomplete="email" inputmode="email"></div>
+      <div><label class="mute text-sm" for="aPass">Password</label><input id="aPass" type="password" autocomplete="current-password"></div>
+      <p id="aErr" class="text-sm" style="color:var(--out)" role="alert"></p>
+      <button id="aGo" class="w-full min-h-[56px] rounded-2xl font-bold text-lg" style="background:var(--sun);color:var(--sunink)">Sign in</button>
+    </div>
+  </div>
+</section>
+
+<div id="app" class="lg:grid lg:grid-cols-[220px_minmax(0,1fr)_380px] min-h-screen" hidden>
+
+<nav class="fixed bottom-0 inset-x-0 z-30 card border-x-0 border-b-0 flex lg:flex-col lg:static lg:border-0 lg:border-r lg:p-5 lg:gap-1 lg:h-screen lg:sticky lg:top-0" style="padding-bottom:env(safe-area-inset-bottom,0px)" role="tablist">
+  <div class="hidden lg:block mb-8"><div class="d text-2xl font-extrabold leading-none">Cash for<br>Coffee</div><div id="people" class="mute text-sm mt-2"></div></div>
+  <button class="tab mute flex-1 lg:flex-none flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 min-h-[60px] lg:min-h-[48px] lg:px-3 text-sm lg:text-base" role="tab" data-v="now"><span class="pip w-8 h-1.5 lg:w-2 lg:h-2 rounded-full"></span>Now</button>
+  <button class="tab mute flex-1 lg:flex-none flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 min-h-[60px] lg:min-h-[48px] lg:px-3 text-sm lg:text-base" role="tab" data-v="ahead"><span class="pip w-8 h-1.5 lg:w-2 lg:h-2 rounded-full"></span>Ahead</button>
+  <button class="tab mute flex-1 lg:flex-none flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 min-h-[60px] lg:min-h-[48px] lg:px-3 text-sm lg:text-base" role="tab" data-v="where"><span class="pip w-8 h-1.5 lg:w-2 lg:h-2 rounded-full"></span>Where</button>
+  <button id="addBtn" class="lg:hidden flex-1 flex items-center justify-center min-h-[60px] font-bold" style="color:var(--out)" aria-label="Add item"><span class="d text-4xl leading-none">+</span></button>
+  <button id="outBtn" class="hidden lg:block mt-auto text-left mute min-h-[44px] px-3">Sign out</button>
+</nav>
+
+<main class="px-4 pt-5 pb-28 lg:pb-10 lg:px-8 w-full">
+  <div class="max-w-2xl mx-auto">
+    <header class="flex items-center justify-between mb-5 lg:hidden">
+      <span class="d font-bold text-lg">Cash for Coffee</span>
+      <button id="outBtn2" class="mute min-h-[44px] px-2">Sign out</button>
+    </header>
+    <section id="v-now"></section>
+    <section id="v-ahead" hidden></section>
+    <section id="v-where" hidden></section>
+  </div>
+</main>
+
+<div id="scrim" class="fixed inset-0 z-30 bg-black/50 lg:hidden" hidden></div>
+<aside id="sheet" class="closed fixed inset-x-0 bottom-0 z-40 max-h-[92vh] overflow-y-auto card rounded-t-3xl p-5 lg:static lg:max-h-none lg:rounded-none lg:border-0 lg:border-l lg:h-screen lg:sticky lg:top-0" style="padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))">
+  <div class="flex items-center justify-between mb-4">
+    <h2 id="sheetTitle" class="d text-2xl font-bold">Add item</h2>
+    <button id="closeBtn" class="lg:hidden chip">Close</button>
+  </div>
+  <div class="grid grid-cols-2 gap-2 mb-4" id="typeSw">
+    <button class="chip" data-t="Expense" aria-pressed="true">Money out</button>
+    <button class="chip" data-t="Income" aria-pressed="false">Money in</button>
+  </div>
+  <div class="mb-4"><label class="mute text-sm" for="fAmt">Amount</label>
+    <div class="relative"><span class="d absolute left-4 top-1/2 -translate-y-1/2 text-2xl mute">$</span><input id="fAmt" inputmode="decimal" placeholder="0.00" class="num d text-3xl font-bold !pl-10 !min-h-[64px]"></div></div>
+  <div class="space-y-4">
+    <div><label class="mute text-sm" for="fName">What is it</label><input id="fName" list="names" placeholder="e.g. Groceries" autocomplete="off"><datalist id="names"></datalist></div>
+    <div class="grid grid-cols-2 gap-3">
+      <div><label class="mute text-sm" for="fDate">Date</label><input id="fDate" type="date"></div>
+      <div><label class="mute text-sm" for="fCat">Category</label><select id="fCat"></select></div>
+    </div>
+    <div><label class="mute text-sm" for="fNote">Notes</label><textarea id="fNote" rows="2" placeholder="Optional"></textarea></div>
+    <div class="flex items-center gap-1"><button id="fPaid" role="checkbox" aria-checked="false" class="chk" aria-label="Already paid"><i>✓</i></button><span>Already paid</span></div>
+    <p id="fErr" class="text-sm" style="color:var(--out)" role="alert"></p>
+    <div class="grid grid-cols-[1fr_auto] gap-3 pt-1">
+      <button id="saveBtn" class="min-h-[56px] rounded-2xl font-bold text-lg" style="background:var(--sun);color:var(--sunink)">Save item</button>
+      <button id="delBtn" class="min-h-[56px] px-5 rounded-2xl border line font-medium" style="color:var(--out)" hidden>Delete</button>
+    </div>
+  </div>
+</aside>
+</div>
+
+<div id="toast" class="fixed left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl font-medium shadow-lg" style="bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg)" role="status" hidden></div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
