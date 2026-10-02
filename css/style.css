@@ -1,0 +1,26 @@
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);--bg:#e9eeed;--card:#fff;--ink:#10231f;--mute:#5b6d68;--line:#d5dedb;--in:#0b7a63;--onin:#fff;--out:#bf4a1a;--onout:#fff;--sun:#f2b705;--sunink:#3b2c00}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1513;--card:#132421;--ink:#e8f1ee;--mute:#8da39d;--line:#243a36;--in:#3fcfaa;--onin:#062b22;--out:#ff8a5c;--onout:#3a1200}}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;min-height:100%}
+.d{font-family:'Bricolage Grotesque','Instrument Sans',system-ui,sans-serif;letter-spacing:-.02em}
+.num{font-variant-numeric:tabular-nums}
+.card{background:var(--card);border:1px solid var(--line)}
+.mute{color:var(--mute)}
+.line{border-color:var(--line)}
+.chip{min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--card);white-space:nowrap;font-weight:500;color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip:disabled{opacity:.35}
+.chk{width:44px;height:44px;display:grid;place-items:center;flex:none}
+.chk i{width:26px;height:26px;border-radius:50%;border:2px solid var(--mute);display:grid;place-items:center;font-style:normal;font-size:15px;font-weight:700;transition:.15s}
+.chk[aria-checked="true"] i{background:var(--in);border-color:var(--in);color:var(--onin)}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:12px;min-height:48px;padding:0 14px;width:100%;font-size:16px;color:var(--ink)}
+textarea{padding:12px 14px}
+:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+#sheet{transition:transform .25s ease,visibility 0s}
+@media (prefers-reduced-motion:reduce){#sheet{transition:none}}
+@media (max-width:1023px){#sheet.closed{transform:translateY(105%);visibility:hidden;transition:transform .25s ease,visibility 0s linear .25s}}
+.tab[aria-selected="true"]{color:var(--ink);font-weight:700}
+.tab[aria-selected="true"] .pip{background:var(--sun)}
+summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}
+details[open] .caret{transform:rotate(90deg)}
