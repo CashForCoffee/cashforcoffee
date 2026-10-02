@@ -94,8 +94,8 @@ async function loadAll(){
 function summaryCards(p){const s=periodStats(p),expectedBalance=p.income-s.outgoings;return `<section class="summary">
   <div class="summary-card income"><div class="summary-label">${icon('arrow-down-circle')} Income</div><div class="summary-value mono">${money(p.income)}</div><div class="summary-note">This fortnight</div></div>
   <div class="summary-card expense"><div class="summary-label">${icon('arrow-up-circle')} Outgoings</div><div class="summary-value mono">${money(s.outgoings)}</div><div class="summary-note">Including savings</div></div>
-  <div class="summary-card expected"><div class="summary-label">${icon('piggy-bank')} Expected balance</div><div class="summary-value mono ${expectedBalance<0?'negative':''}">${money(expectedBalance)}</div><div class="summary-note">This fortnight</div></div>
   <div class="summary-card savings"><div class="summary-label">${icon('coins')} Savings</div><div class="summary-value mono">${money(s.savings)}</div><div class="summary-note">Savings & sinking funds</div></div>
+  <div class="summary-card expected"><div class="summary-label">${icon('piggy-bank')} Expected balance</div><div class="summary-value mono ${expectedBalance<0?'negative':''}">${money(expectedBalance)}</div><div class="summary-note">This fortnight</div></div>
   <div class="summary-card remaining"><div class="summary-label">${icon('wallet')} Remaining outgoings</div><div class="summary-value mono" data-metric="period-remaining">${money(s.remainingOutgoings)}</div><div class="summary-note">Still to leave the main account</div></div>
 </section>`}
 function categoryOptions(selected){return categorySelectOptions(selected,true)}
