@@ -34,14 +34,15 @@
   <button class="tab mute flex-1 lg:flex-none flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 min-h-[60px] lg:min-h-[48px] lg:px-3 text-[13px] lg:text-base" role="tab" data-v="where"><span class="pip w-8 h-1.5 lg:w-2 lg:h-2 rounded-full"></span>Where</button>
   <button class="tab mute flex-1 lg:flex-none flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 min-h-[60px] lg:min-h-[48px] lg:px-3 text-[13px] lg:text-base" role="tab" data-v="everything"><span class="pip w-8 h-1.5 lg:w-2 lg:h-2 rounded-full"></span>Everything</button>
   <button id="addBtn" class="lg:hidden flex-1 flex items-center justify-center min-h-[60px] font-bold" style="color:var(--out)" aria-label="Add item"><span class="d text-4xl leading-none">+</span></button>
-  <button id="outBtn" class="hidden lg:block mt-auto text-left mute min-h-[44px] px-3">Sign out</button>
+  <button id="toolsBtn" class="hidden lg:block mt-auto text-left mute min-h-[44px] px-3">Tools</button>
+  <button id="outBtn" class="hidden lg:block text-left mute min-h-[44px] px-3">Sign out</button>
 </nav>
 
 <main class="px-4 pt-5 pb-28 lg:pb-10 lg:px-8 w-full">
   <div class="max-w-2xl mx-auto">
     <header class="flex items-center justify-between mb-5 lg:hidden">
       <span class="d font-bold text-lg">Cash for Coffee</span>
-      <button id="outBtn2" class="mute min-h-[44px] px-2">Sign out</button>
+      <button id="toolsBtn2" class="chip">Tools</button>
     </header>
     <section id="v-now"></section>
     <section id="v-ahead" hidden></section>
@@ -79,6 +80,13 @@
 </aside>
 </div>
 
+<div id="modal" class="fixed inset-0 z-50 flex items-end lg:items-center justify-center" hidden>
+  <div id="modalScrim" class="absolute inset-0 bg-black/50"></div>
+  <div class="relative card w-full lg:max-w-lg rounded-t-3xl lg:rounded-3xl max-h-[92vh] overflow-y-auto p-5" style="padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="flex items-center justify-between mb-4"><h2 id="modalTitle" class="d text-2xl font-bold"></h2><button id="modalClose" class="chip">Close</button></div>
+    <div id="modalBody"></div>
+  </div>
+</div>
 <div id="toast" class="fixed left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl font-medium shadow-lg" style="bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg)" role="status" hidden></div>
 <script type="module" src="js/app.js"></script>
 </body>
