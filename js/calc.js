@@ -117,7 +117,7 @@ export function parsePaste(text) {
     const c = lines[i].split('\t').map(cell), g = k => c[cols.indexOf(k)] ?? '';
     const date = parseDate(g('date')), amount = Math.abs(parseFloat(g('amount').replace(/[$,\s()]/g, '')));
     const t = g('type'), type = /^i/i.test(t) ? 'Income' : /^e/i.test(t) ? 'Expense' : null, item = g('item');
-    const bad = !date ? `Date "${g('date')}" not recognised` : !(amount > 0) ? `Amount "${g('amount')}" not recognised`
+    const bad = !date ? `Date "${g('date')}" not recognised` : !(amount >= 0) ? `Amount "${g('amount')}" not recognised`
       : !type ? `Type "${t}" should be Income or Expense` : !item ? 'Item is blank' : null;
     if (bad) { errors.push({ line: i + 1, msg: bad }); continue; }
     rows.push({ date, item, amount: round(amount), type, category: g('category') || 'Uncategorised',

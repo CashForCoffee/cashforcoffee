@@ -23,9 +23,12 @@ Static site (HTML, Tailwind via CDN, ES modules). No build step. Talks straight 
 ## Tools menu
 - Add a recurring payment: creates one separate row per date (weekly, fortnightly or monthly, until a date). Rows are not linked.
 - Update an amount going forward: matches the item name from a date onward and skips paid rows.
+- Update a date going forward: matches the item name from a date onward and skips paid rows. Set the new date for the first match and the rest move by the same number of days. Rows a month apart keep a day of the month instead (shorter months use their last day).
+- Amounts of 0 are allowed everywhere (add, edit, recurring, update an amount, import), for items like Splurge with nothing allocated.
 - Import from Excel: paste tab separated rows. "Add to budget" can skip rows that already exist. "Start fresh" downloads a backup CSV, adds the new rows, then removes the old ones, and asks for the anchor date.
 - Export to CSV: downloads every item with the same seven columns.
 
 ## Extra Supabase checks for the tools
+- Blank notes are saved as empty text, not null, so a notes column set to NOT NULL works.
 - `budget_items` needs insert, update and delete policies for signed-in users. Updates and deletes that a policy blocks are reported as errors.
 - The anchor date is read from and saved to `budget_settings` (one row with an anchor column, or key/value rows). Signed-in users need select, insert and update policies there. If the table cannot be read, the app falls back to `anchorDate` in `js/config.js`.

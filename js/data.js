@@ -20,7 +20,7 @@ const norm = r => ({
 const paidValue = p => (paidBool ? p : p ? 'Yes' : 'No');
 const payload = o => ({
   [cols.date]: o.date, [cols.item]: o.item, [cols.amount]: o.amount, [cols.type]: o.type,
-  [cols.category]: o.category, [cols.paid]: paidValue(o.paid), [cols.notes]: o.notes || null
+  [cols.category]: o.category, [cols.paid]: paidValue(o.paid), [cols.notes]: o.notes ?? ''
 });
 
 export const signIn = (email, password) => sb.auth.signInWithPassword({ email, password });
@@ -78,6 +78,18 @@ export async function updateAmount(ids, amount) {
   }
   if (out.length !== ids.length) throw new Error(`Only ${out.length} of ${ids.length} rows changed. Check the update policy in Row Level Security.`);
   return out;
+}
+// Each row gets its own date, so these go one update per row, twenty at a time.
+// Rows that changed are pushed into `track` even when a later one fails.
+export async function updateDates(changes, track = []) {
+  for (const part of chunks(changes, 20)) {
+    const res = await Promise.all(part.map(c => sb.from(T).update({ [cols.date]: c.date }).eq(cols.id, c.id).select()));
+    let err = null;
+    for (const { data, error } of res) { if (error) err ||= error; else track.push(...data.map(norm)); }
+    if (err) throw err;
+  }
+  if (track.length !== changes.length) throw new Error(`Only ${track.length} of ${changes.length} rows changed. Check the update policy in Row Level Security.`);
+  return track;
 }
 export async function removeMany(ids) {
   for (const part of chunks(ids, 100)) {

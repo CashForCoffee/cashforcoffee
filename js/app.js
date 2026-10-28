@@ -165,7 +165,7 @@ function renderWhere() {
   <ul class="card rounded-2xl px-4">${ents.map(([c, v]) => {
     const dl = prev[c] ? v.t - prev[c].t : null;
     return `<li class="border-b line last:border-0"><details><summary class="py-4 block"><div class="flex justify-between items-baseline gap-3"><span class="font-semibold flex items-center gap-2 min-w-0"><span class="caret mute transition-transform">›</span><span class="w-3 h-3 rounded-full flex-none" style="background:${col(c)}"></span><span class="truncate">${esc(c)}</span></span><span class="num d text-lg font-bold">${money(v.t)}</span></div>
-      <div class="h-2 rounded-full mt-2 overflow-hidden" style="background:var(--line)"><div class="h-full" style="width:${v.p / v.t * 100}%;background:${col(c)}"></div></div>
+      <div class="h-2 rounded-full mt-2 overflow-hidden" style="background:var(--line)"><div class="h-full" style="width:${v.t ? v.p / v.t * 100 : 0}%;background:${col(c)}"></div></div>
       <div class="flex justify-between text-sm mute mt-1 num"><span>${money(v.p)} paid · ${money(v.t - v.p)} to go</span><span>${Math.round(v.t / tot * 100)}%${dl !== null && Math.abs(dl) >= 0.01 ? ` · ${money(dl, { sign: true })} vs last` : ''}</span></div></summary>
       <ul class="pb-3">${v.items.sort((a, b) => b.amount - a.amount).map(x => `<li class="flex justify-between py-2 pl-6 ${x.paid ? 'mute' : ''}"><button class="text-left min-h-[44px] flex-1 truncate" data-edit="${x.id}">${x.paid ? '✓ ' : ''}${esc(x.item)} <span class="text-sm mute">${shortDate(x.date)}</span></button><span class="num">${money(x.amount)}</span></li>`).join('')}</ul></details></li>`;
   }).join('') || '<li class="py-6 text-center mute">No spending planned in this fortnight.</li>'}</ul>`;
@@ -199,8 +199,8 @@ function openSheet(id) {
 }
 function closeSheet() { $('#scrim').hidden = true; if (desktop.matches) openSheet(); else $('#sheet').classList.add('closed'); }
 async function save() {
-  const a = parseFloat($('#fAmt').value), name = $('#fName').value.trim(), err = $('#fErr');
-  if (!(a > 0)) { err.textContent = 'Enter an amount above zero.'; $('#fAmt').focus(); return; }
+  const raw = $('#fAmt').value.trim(), a = parseFloat(raw.replace(/[$,\s]/g, '')), name = $('#fName').value.trim(), err = $('#fErr');
+  if (!raw || !(a >= 0)) { err.textContent = 'Enter an amount. Use 0 if nothing is allocated.'; $('#fAmt').focus(); return; }
   if (!name) { err.textContent = 'Give the item a name.'; $('#fName').focus(); return; }
   if (!$('#fDate').value) { err.textContent = 'Pick a date.'; return; }
   const o = { date: $('#fDate').value, item: name, amount: Math.round(a * 100) / 100, type: S.type, category: $('#fCat').value, notes: $('#fNote').value.trim(), paid: $('#fPaid').getAttribute('aria-checked') === 'true' };

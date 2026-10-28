@@ -1,8 +1,8 @@
-// Tools menu: recurring payments, bulk amount update, Excel import, CSV export.
+// Tools menu: recurring payments, bulk amount and date updates, Excel import, CSV export.
 import * as D from './data.js';
-import { money, shortDate, dayLabel, repeatDates, parsePaste, todayISO, periodRange } from './calc.js';
+import { money, shortDate, dayLabel, repeatDates, parsePaste, todayISO, periodRange, periodIndex, addDays, daysBetween } from './calc.js';
 
-let ctx, rtype = 'Expense', imode = 'add', iskip = true;
+let ctx, rtype = 'Expense', imode = 'add', iskip = true, mAuto = '';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const num = v => parseFloat(String(v).replace(/[$,\s]/g, ''));
@@ -20,6 +20,7 @@ function finish(msg) { ctx.refresh(); close(); ctx.toast(msg); }
 
 function menu() {
   const items = [['recur', 'Add a recurring payment', 'Creates one row for each date'], ['bulk', 'Update an amount going forward', 'Skips paid rows'],
+    ['dates', 'Update a date going forward', 'Moves the rest with it, skips paid rows'],
     ['import', 'Import from Excel', 'Paste rows to add, or start fresh'], ['export', 'Export to CSV', 'Download every item']];
   open('Tools', `<div class="space-y-3">${items.map(([k, t, s]) => `<button class="card rounded-2xl w-full text-left p-4 flex justify-between items-center gap-3" data-tool="${k}"><span><b>${t}</b><span class="block text-sm mute">${s}</span></span><span class="text-2xl mute">›</span></button>`).join('')}<button class="chip w-full" data-tool="out">Sign out</button></div>`);
 }
@@ -68,11 +69,11 @@ function recurAutofill() {
 function recurPreview() {
   const i = recurIn(), dates = repeatDates(i.first, i.freq, i.until), past = dates.filter(d => d < todayISO()).length;
   let t = !dates.length ? 'Pick a first date, and an until date on or after it.'
-    : `<b>${dates.length} rows</b>, ${shortDate(dates[0], true)} to ${shortDate(dates.at(-1), true)}${i.amount > 0 ? `, ${money(i.amount * dates.length)} in total` : ''}.<br>${dates.slice(0, 4).map(d => dayLabel(d)).join(', ')}${dates.length > 4 ? ' ...' : ''}`;
+    : `<b>${dates.length} rows</b>, ${shortDate(dates[0], true)} to ${shortDate(dates.at(-1), true)}${i.amount >= 0 ? `, ${money(i.amount * dates.length)} in total` : ''}.<br>${dates.slice(0, 4).map(d => dayLabel(d)).join(', ')}${dates.length > 4 ? ' ...' : ''}`;
   if (dates.length >= 400) t += '<br>Limited to 400 rows.';
   if (past) t += `<br>${past} dates are in the past and will show as not ticked.`;
   if (i.freq === 'monthly' && i.first.slice(8) > '28') t += '<br>Shorter months use their last day.';
-  $('#rPrev').innerHTML = t; $('#rGo').disabled = !(i.amount > 0 && i.item && dates.length);
+  $('#rPrev').innerHTML = t; $('#rGo').disabled = !(i.amount >= 0 && i.item && dates.length);
 }
 async function runRecur() {
   const i = recurIn(), track = [], btn = $('#rGo'); btn.disabled = true;
@@ -102,9 +103,9 @@ function bulkPreview() {
   else if (!hit.length) t = 'No unpaid rows match that item from that date.' + skip;
   else {
     const a = hit.map(r => r.amount), lo = Math.min(...a), hi = Math.max(...a), ds = hit.map(r => r.date).sort();
-    t = `<b>${hit.length} rows</b>, ${shortDate(ds[0], true)} to ${shortDate(ds.at(-1), true)}.<br>Now ${lo === hi ? money(lo) : money(lo) + ' to ' + money(hi)}${amt > 0 ? `, becoming ${money(amt)}` : ''}.` + skip;
+    t = `<b>${hit.length} rows</b>, ${shortDate(ds[0], true)} to ${shortDate(ds.at(-1), true)}.<br>Now ${lo === hi ? money(lo) : money(lo) + ' to ' + money(hi)}${amt >= 0 ? `, becoming ${money(amt)}` : ''}.` + skip;
   }
-  $('#bPrev').innerHTML = t; $('#bGo').disabled = !(hit.length && amt > 0);
+  $('#bPrev').innerHTML = t; $('#bGo').disabled = !(hit.length && amt >= 0);
 }
 async function runBulk() {
   const { hit } = bulkHits(), amt = Math.round(num($('#bAmt').value) * 100) / 100; $('#bGo').disabled = true;
@@ -112,6 +113,62 @@ async function runBulk() {
     const out = await D.updateAmount(hit.map(r => r.id), amt), m = new Map(out.map(r => [r.id, r]));
     ctx.S.rows = ctx.S.rows.map(r => m.get(r.id) || r); finish(`Updated ${out.length} rows`);
   } catch (e) { $('#bPrev').innerHTML = `<span style="color:var(--out)">Could not update: ${esc(e.message || e)}</span>`; $('#bGo').disabled = false; }
+}
+
+/* ---------- bulk date update ---------- */
+function moveDate() {
+  mAuto = '';
+  open('Update a date', `${BACK}<p class="mute mb-4">Moves every unpaid row with this item name, from the date you pick onward. Set the new date for the first one and the rest move by the same amount. Paid rows are left alone.</p>
+  <div class="space-y-4">
+    ${field('mItem', 'Item', `<input id="mItem" list="mNames" autocomplete="off" placeholder="e.g. Rent"><datalist id="mNames">${names()}</datalist>`)}
+    ${field('mFrom', 'From date', `<input id="mFrom" type="date" value="${todayISO()}">`)}
+    ${field('mTo', 'New date for the first one', '<input id="mTo" type="date">')}
+    <div id="mPrev" class="${BOX} mute">Choose an item.</div>
+    <button id="mGo" ${GO} disabled>Update dates</button></div>`);
+}
+const ord = n => n + (n % 100 > 10 && n % 100 < 14 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+function movePlan() {
+  const item = $('#mItem').value.trim().toLowerCase(), from = $('#mFrom').value, to = $('#mTo').value;
+  const m = ctx.S.rows.filter(r => item && from && r.item.toLowerCase() === item && r.date >= from);
+  const hit = m.filter(r => !r.paid).sort((a, b) => a.date.localeCompare(b.date)), skipped = m.length - hit.length;
+  if (!hit.length || !to) return { hit, skipped, plan: [] };
+  const ds = hit.map(r => r.date), first = ds[0];
+  // Rows a month apart keep a day of the month (shorter months use their last day). Everything else moves by a number of days.
+  const monthly = ds.length > 1 && ds.slice(1).every((d, k) => { const g = daysBetween(ds[k], d); return g >= 28 && g <= 31; });
+  let f, shift;
+  if (monthly) {
+    const [fy, fm] = first.split('-').map(Number), [ty, tm, td] = to.split('-').map(Number), off = (ty - fy) * 12 + tm - fm;
+    f = d => { const [y, mo] = d.split('-').map(Number), t = mo - 1 + off, yy = y + Math.floor(t / 12), mm = t - Math.floor(t / 12) * 12;
+      const last = new Date(Date.UTC(yy, mm + 1, 0)).getUTCDate(); return `${yy}-${String(mm + 1).padStart(2, '0')}-${String(Math.min(td, last)).padStart(2, '0')}`; };
+    shift = `move to the ${ord(td)} of each month`;
+  } else {
+    const n = daysBetween(first, to); f = d => addDays(d, n);
+    shift = n ? `move ${Math.abs(n)} day${Math.abs(n) === 1 ? '' : 's'} ${n > 0 ? 'later' : 'earlier'}` : '';
+  }
+  return { hit, skipped, shift, plan: hit.map(r => ({ r, to: f(r.date) })).filter(p => p.to !== p.r.date) };
+}
+function movePreview(e) {
+  if (e && (e.target.id === 'mItem' || e.target.id === 'mFrom')) {   // suggest the current date of the first match
+    const { hit } = movePlan(), d = hit[0]?.date || '';
+    if (!$('#mTo').value || $('#mTo').value === mAuto) { $('#mTo').value = d; mAuto = d; }
+  }
+  const { hit, skipped, shift, plan } = movePlan(), A = ctx.getAnchor(), skip = skipped ? `<br>${skipped} paid rows skipped.` : ''; let t;
+  if (!$('#mItem').value.trim()) t = 'Choose an item.';
+  else if (!hit.length) t = 'No unpaid rows match that item from that date.' + skip;
+  else if (!plan.length) t = `<b>${hit.length} rows</b>, first on ${dayLabel(hit[0].date, true)}.<br>Pick a new date for that one.` + skip;
+  else {
+    const pays = plan.filter(p => periodIndex(p.to, A) !== periodIndex(p.r.date, A)).length, past = plan.filter(p => p.to < todayISO()).length;
+    t = `<b>${plan.length} rows</b> ${shift}.<br>${plan.slice(0, 3).map(p => `${dayLabel(p.r.date)} to ${dayLabel(p.to)}`).join('<br>')}${plan.length > 3 ? '<br>...' : ''}` + skip;
+    if (pays) t += `<br>${pays} rows move into a different pay.`;
+    if (past) t += `<br>${past} new dates are in the past.`;
+  }
+  $('#mPrev').innerHTML = t; $('#mGo').disabled = !plan.length;
+}
+async function runMove() {
+  const { plan } = movePlan(), track = []; $('#mGo').disabled = true;
+  const merge = () => { const m = new Map(track.map(r => [r.id, r])); ctx.S.rows = ctx.S.rows.map(r => m.get(r.id) || r); };
+  try { await D.updateDates(plan.map(p => ({ id: p.r.id, date: p.to })), track); merge(); finish(`Moved ${track.length} rows`); }
+  catch (e) { merge(); ctx.refresh(); $('#mPrev').innerHTML = `<span style="color:var(--out)">Moved ${track.length} of ${plan.length} rows, then it failed: ${esc(e.message || e)}</span>`; $('#mGo').disabled = false; }
 }
 
 /* ---------- import ---------- */
@@ -178,14 +235,14 @@ export function initTools(c) {
     const b = e.target.closest('button'); if (!b) return;
     if (b.id === 'toolsBtn' || b.id === 'toolsBtn2') menu();
     else if (b.id === 'modalClose') close();
-    else if (b.dataset.tool) ({ menu, recur, bulk, import: imp, export: exp, out: () => { close(); D.signOut(); } })[b.dataset.tool]();
+    else if (b.dataset.tool) ({ menu, recur, bulk, dates: moveDate, import: imp, export: exp, out: () => { close(); D.signOut(); } })[b.dataset.tool]();
     else if (b.dataset.rt) { setRType(b.dataset.rt); recurPreview(); }
     else if (b.dataset.im) setIMode(b.dataset.im);
     else if ('skip' in b.dataset) { iskip = !iskip; b.setAttribute('aria-pressed', iskip); importPreview(); }
-    else if (b.id === 'rGo') runRecur(); else if (b.id === 'bGo') runBulk(); else if (b.id === 'iGo') runImport();
+    else if (b.id === 'rGo') runRecur(); else if (b.id === 'bGo') runBulk(); else if (b.id === 'mGo') runMove(); else if (b.id === 'iGo') runImport();
   });
   $('#modalScrim').addEventListener('click', close);
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#modal').hidden) close(); });
-  $('#modal').addEventListener('input', e => { const k = e.target.id[0]; if (k === 'r') recurPreview(); else if (k === 'b') bulkPreview(); else if (k === 'i') importPreview(); });
+  $('#modal').addEventListener('input', e => { const k = e.target.id[0]; if (k === 'r') recurPreview(); else if (k === 'b') bulkPreview(); else if (k === 'm') movePreview(e); else if (k === 'i') importPreview(); });
   $('#modal').addEventListener('change', e => { if (e.target.id === 'rItem') recurAutofill(); });
 }
